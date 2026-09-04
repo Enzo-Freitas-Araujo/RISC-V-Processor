@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="utf-8"?>
+<circuit>
+  <version>2</version>
+  <attributes/>
+  <visualElements>
+    <visualElement>
+      <elementName>External</elementName>
+      <elementAttributes>
+        <entry>
+          <string>applicationType</string>
+          <appType>GHDL</appType>
+        </entry>
+        <entry>
+          <string>Label</string>
+          <string>MUX_2inputs</string>
+        </entry>
+        <entry>
+          <string>externalInputs</string>
+          <string>enter1:32,enter2:32,selector</string>
+        </entry>
+        <entry>
+          <string>Code</string>
+          <string>LIBRARY ieee;
+USE ieee.std_logic_1164.all;
+
+ENTITY MUX_2inputs IS
+	PORT(
+		enter1, enter2 : IN STD_LOGIC_VECTOR (31 downto 0);
+		selector : IN STD_LOGIC;
+		output : OUT STD_LOGIC_VECTOR (31 downto 0)
+	);
+END MUX_2inputs;
+
+ARCHITECTURE MUX_logic OF MUX_2inputs IS
+	BEGIN
+		output &lt;= enter1 WHEN selector = &apos;0&apos; ELSE
+			enter2;
+
+	END MUX_logic;
+--------------------------------------------------------------------------------</string>
+        </entry>
+        <entry>
+          <string>externalOutputs</string>
+          <string>output:32</string>
+        </entry>
+      </elementAttributes>
+      <pos x="740" y="380"/>
+    </visualElement>
+    <visualElement>
+      <elementName>In</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Bits</string>
+          <int>32</int>
+        </entry>
+      </elementAttributes>
+      <pos x="620" y="340"/>
+    </visualElement>
+    <visualElement>
+      <elementName>In</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Bits</string>
+          <int>32</int>
+        </entry>
+      </elementAttributes>
+      <pos x="620" y="400"/>
+    </visualElement>
+    <visualElement>
+      <elementName>In</elementName>
+      <elementAttributes/>
+      <pos x="620" y="460"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Out</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Bits</string>
+          <int>32</int>
+        </entry>
+      </elementAttributes>
+      <pos x="880" y="400"/>
+    </visualElement>
+    <visualElement>
+      <elementName>External</elementName>
+      <elementAttributes>
+        <entry>
+          <string>applicationType</string>
+          <appType>GHDL</appType>
+        </entry>
+        <entry>
+          <string>Label</string>
+          <string>MUX_3inputs</string>
+        </entry>
+        <entry>
+          <string>externalInputs</string>
+          <string>enter1:32,enter2:32,enter3:32,selector:2</string>
+        </entry>
+        <entry>
+          <string>Code</string>
+          <string>LIBRARY ieee;
+USE ieee.std_logic_1164.all;
+
+ENTITY MUX_3inputs IS
+	PORT(
+		enter1, enter2, enter3 : IN STD_LOGIC_VECTOR (31 downto 0);
+		selector: IN STD_LOGIC_VECTOR (1 downto 0);
+		output : OUT STD_LOGIC_VECTOR (31 downto 0)
+	);
+END MUX_3inputs;
+
+ARCHITECTURE MUX_logic OF MUX_3inputs IS
+	BEGIN
+		output &lt;= enter1 WHEN selector = &quot;00&quot; ELSE
+			enter2 WHEN selector = &quot;01&quot; ELSE
+			enter3;
+
+	END MUX_logic;
+--------------------------------------------------------------------------------</string>
+        </entry>
+        <entry>
+          <string>externalOutputs</string>
+          <string>output:32</string>
+        </entry>
+      </elementAttributes>
+      <pos x="740" y="600"/>
+    </visualElement>
+    <visualElement>
+      <elementName>In</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Bits</string>
+          <int>32</int>
+        </entry>
+      </elementAttributes>
+      <pos x="620" y="560"/>
+    </visualElement>
+    <visualElement>
+      <elementName>In</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Bits</string>
+          <int>32</int>
+        </entry>
+      </elementAttributes>
+      <pos x="620" y="620"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Out</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Bits</string>
+          <int>32</int>
+        </entry>
+      </elementAttributes>
+      <pos x="880" y="620"/>
+    </visualElement>
+    <visualElement>
+      <elementName>In</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Bits</string>
+          <int>32</int>
+        </entry>
+      </elementAttributes>
+      <pos x="620" y="660"/>
+    </visualElement>
+    <visualElement>
+      <elementName>In</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Bits</string>
+          <int>2</int>
+        </entry>
+      </elementAttributes>
+      <pos x="620" y="700"/>
+    </visualElement>
+  </visualElements>
+  <wires>
+    <wire>
+      <p1 x="620" y="400"/>
+      <p2 x="740" y="400"/>
+    </wire>
+    <wire>
+      <p1 x="800" y="400"/>
+      <p2 x="880" y="400"/>
+    </wire>
+    <wire>
+      <p1 x="620" y="560"/>
+      <p2 x="740" y="560"/>
+    </wire>
+    <wire>
+      <p1 x="800" y="640"/>
+      <p2 x="880" y="640"/>
+    </wire>
+    <wire>
+      <p1 x="620" y="340"/>
+      <p2 x="740" y="340"/>
+    </wire>
+    <wire>
+      <p1 x="720" y="420"/>
+      <p2 x="740" y="420"/>
+    </wire>
+    <wire>
+      <p1 x="620" y="660"/>
+      <p2 x="740" y="660"/>
+    </wire>
+    <wire>
+      <p1 x="620" y="460"/>
+      <p2 x="720" y="460"/>
+    </wire>
+    <wire>
+      <p1 x="620" y="620"/>
+      <p2 x="740" y="620"/>
+    </wire>
+    <wire>
+      <p1 x="620" y="700"/>
+      <p2 x="740" y="700"/>
+    </wire>
+    <wire>
+      <p1 x="720" y="420"/>
+      <p2 x="720" y="460"/>
+    </wire>
+    <wire>
+      <p1 x="880" y="620"/>
+      <p2 x="880" y="640"/>
+    </wire>
+    <wire>
+      <p1 x="740" y="340"/>
+      <p2 x="740" y="380"/>
+    </wire>
+    <wire>
+      <p1 x="740" y="560"/>
+      <p2 x="740" y="600"/>
+    </wire>
+    <wire>
+      <p1 x="740" y="680"/>
+      <p2 x="740" y="700"/>
+    </wire>
+  </wires>
+  <measurementOrdering/>
+</circuit>
