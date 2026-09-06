@@ -15,7 +15,7 @@ ARCHITECTURE reg32_logic OF reg32 IS
 	
 		PROCESS(CLK)
 			BEGIN
-				IF (CLK'event AND CLK='1') THEN
+				IF (RISING_EDGE(CLK)) THEN
 					memOutput <= memData;
 				ELSE
 					memOutput <= memOutput;
