@@ -552,7 +552,7 @@ ARCHITECTURE IR_logic OF IR_block IS
         </entry>
         <entry>
           <string>Label</string>
-          <string>memory_register</string>
+          <string>reg32</string>
         </entry>
         <entry>
           <string>externalInputs</string>
@@ -564,15 +564,15 @@ ARCHITECTURE IR_logic OF IR_block IS
 USE ieee.std_logic_1164.all;
 USE ieee.numeric_std.all;
 
-ENTITY memory_register IS
+ENTITY reg32 IS
 	PORT(
 		memData : IN STD_LOGIC_VECTOR(31 downto 0);
 		CLK : IN STD_LOGIC;
 		memOutput : OUT STD_LOGIC_VECTOR(31 downto 0)
 	);
-END memory_register;
+END reg32;
 
-ARCHITECTURE memory_register_logic OF memory_register IS
+ARCHITECTURE reg32_logic OF reg32 IS
 	BEGIN
 	
 		PROCESS(CLK)
@@ -584,7 +584,7 @@ ARCHITECTURE memory_register_logic OF memory_register IS
 				END IF;
 		END PROCESS;
 
-	END memory_register_logic;</string>
+	END reg32_logic;</string>
         </entry>
         <entry>
           <string>externalOutputs</string>
@@ -631,7 +631,7 @@ ARCHITECTURE memory_register_logic OF memory_register IS
         </entry>
         <entry>
           <string>externalInputs</string>
-          <string>opcode:7</string>
+          <string>opcode:7,CLK,RST</string>
         </entry>
         <entry>
           <string>Code</string>
@@ -642,6 +642,8 @@ USE ieee.numeric_std.all;
 ENTITY output_control IS
 	PORT(
 		opcode : IN STD_LOGIC_VECTOR(6 downto 0);
+		CLK : IN STD_LOGIC;
+		RST : IN STD_LOGIC;
 		IRWrite : OUT STD_LOGIC;
 		MemtoReg : OUT STD_LOGIC;
 		MemWrite : OUT STD_LOGIC;
@@ -650,7 +652,7 @@ ENTITY output_control IS
 		PCWrite : OUT STD_LOGIC;
 		PCWriteCond : OUT STD_LOGIC;
 		PCSource : OUT STD_LOGIC;
-		ALUOp : OUT STD_LOGIC;
+		ALUOp : OUT STD_LOGIC_VECTOR (1 downto 0);
 		ALUSrcB : OUT STD_LOGIC_VECTOR (1 downto 0);
 		ALUSrcA : OUT STD_LOGIC;
 		RegWrite : OUT STD_LOGIC
@@ -660,38 +662,212 @@ END output_control;
 ARCHITECTURE output_control_logic OF output_control IS
 
 	CONSTANT opAritmetica : STD_LOGIC_VECTOR(6 downto 0) := &quot;0110011&quot;;
-	CONSTANT opAritmeticaImm : STD_LOGIC_VECTOR(6 downto 0) := &quot;0010011&quot;;
 	CONSTANT LW : STD_LOGIC_VECTOR(6 downto 0) := &quot;0000011&quot;;
 	CONSTANT SW : STD_LOGIC_VECTOR(6 downto 0) := &quot;0100011&quot;;
-	CONSTANT LUI : STD_LOGIC_VECTOR(6 downto 0) := &quot;0110111&quot;;
-	CONSTANT AUIPC : STD_LOGIC_VECTOR(6 downto 0) := &quot;0010111&quot;;
-	CONSTANT JALR : STD_LOGIC_VECTOR(6 downto 0) := &quot;1100111&quot;;
-	CONSTANT JAL : STD_LOGIC_VECTOR(6 downto 0) := &quot;1101111&quot;;
 	CONSTANT BRANCH : STD_LOGIC_VECTOR(6 downto 0) := &quot;1100111&quot;;
 
+	TYPE state_type IS (s_fetch, s_decode, s_addressComp, s_MemoryAccessLoad, s_MemoryAccessStore, s_MemoryReadLoad, 
+	s_Execution, s_RtypeComp, s_Branch);
+
+	SIGNAL state_next : state_type;
+	SIGNAL state_reg : state_type := s_fetch;
+
 	BEGIN
-		RegWrite &lt;= &apos;1&apos; WHEN (opcode = opAritmetica OR opcode = opAritmeticaImm
-			OR opcode = LW OR opcode = LUI OR opcode = JALR OR opcode = JAL) ELSE
-			    &apos;0&apos;;
+	PROCESS(clk)
+		BEGIN
+			IF RST = &apos;1&apos; THEN
+				state_reg &lt;= s_fetch;
+			ELSIF rising_edge(CLK) THEN
+				state_reg &lt;= state_next;
+			END IF;
+		END PROCESS;
 
-		ALUSrcA &lt;= &apos;1&apos; WHEN (opcode = opAritmetica OR opcode = opAritmeticaImm
-			OR opcode = LW OR opcode = SW OR opcode = LUI OR opcode = BRANCH) ELSE
-			    &apos;0&apos;;
+	PROCESS(state_reg, opcode)
+		BEGIN
+			CASE state_reg IS
+				WHEN s_fetch =&gt;
+					state_next &lt;= s_decode;
 
-		ALUSrcB &lt;= &quot;00&quot; WHEN (opcode = opAritmetica OR opcode = BRANCH) ELSE
-			    &quot;10&quot; WHEN (opcode = opAritmeticaImm OR opcode = LW OR 
-				opcode = LW OR opcode = LUI OR opcode = AUIPC OR opcode = JAL
-				OR opcode = JALR) ELSE 
-				&quot;01&quot;;
+				WHEN s_decode =&gt;
+					IF opcode = LW OR opcode = SW THEN
+						state_next &lt;= s_addressComp;
+					ELSIF opcode = opAritmetica THEN
+						state_next &lt;= s_Execution;
+					ELSIF opcode = BRANCH THEN
+						state_next &lt;= s_Branch;
+					ELSE
+						state_next &lt;= s_fetch; -- Opcode desconhecido reinicia a busca
+					END IF;
 
+				WHEN s_addressComp =&gt;
+					IF opcode = LW THEN
+						state_next &lt;= s_MemoryAccessLoad;
+					ELSIF opcode = SW THEN
+						state_next &lt;= s_MemoryAccessStore;
+					ELSE
+						state_next &lt;= s_fetch;
+					END IF;
+
+				WHEN s_MemoryAccessLoad =&gt;
+					state_next &lt;= s_MemoryReadLoad;
+
+				WHEN s_MemoryReadLoad | s_MemoryAccessStore | s_RtypeComp | s_Branch =&gt;
+					state_next &lt;= s_fetch;
+
+				WHEN s_Execution =&gt;
+					state_next &lt;= s_RtypeComp;
+
+				WHEN OTHERS =&gt;
+					state_next &lt;= s_fetch;
+			END CASE;
+		END PROCESS;
+				
+
+		PROCESS(state_reg)
+		BEGIN
+			IRWrite     &lt;= &apos;0&apos;;
+			MemtoReg    &lt;= &apos;0&apos;;
+			MemWrite    &lt;= &apos;0&apos;;
+			MemRead     &lt;= &apos;0&apos;;
+			IorD        &lt;= &apos;0&apos;;
+			PCWrite     &lt;= &apos;0&apos;;
+			PCWriteCond &lt;= &apos;0&apos;;
+			PCSource    &lt;= &apos;0&apos;;
+			ALUOp       &lt;= &quot;00&quot;;
+			ALUSrcB     &lt;= &quot;00&quot;;
+			ALUSrcA     &lt;= &apos;0&apos;;
+			RegWrite    &lt;= &apos;0&apos;;
+			CASE state_reg IS
+				WHEN s_fetch =&gt;
+					MemRead &lt;= &apos;1&apos;;
+					ALUSrcA &lt;= &apos;0&apos;;
+					IorD &lt;= &apos;0&apos;;
+					IRWrite &lt;= &apos;1&apos;;
+					ALUSrcB &lt;= &quot;01&quot;;
+					ALUOp &lt;= &quot;00&quot;;
+					PCWrite &lt;= &apos;1&apos;;
+					PCSource &lt;= &apos;0&apos;;
+				WHEN s_decode =&gt;
+					ALUSrcA &lt;= &apos;0&apos;;
+					ALUSrcB &lt;= &quot;10&quot;;
+					ALUOp &lt;= &quot;00&quot;;
+				WHEN s_addressComp =&gt;
+					ALUSrcA &lt;= &apos;1&apos;;
+					ALUSrcB &lt;= &quot;10&quot;;
+					ALUOp &lt;= &quot;00&quot;;
+				WHEN s_MemoryAccessLoad =&gt;
+					MemRead &lt;= &apos;1&apos;;
+					IorD &lt;= &apos;1&apos;;
+				WHEN s_MemoryReadLoad =&gt;
+					RegWrite &lt;= &apos;1&apos;;
+					MemtoReg &lt;= &apos;1&apos;;
+				WHEN s_MemoryAccessStore =&gt;
+					MemWrite &lt;= &apos;1&apos;;
+					IorD &lt;= &apos;1&apos;;
+				WHEN s_Execution =&gt;
+					ALUSrcA &lt;= &apos;1&apos;;
+					ALUSrcB &lt;= &quot;00&quot;;
+					ALUOp &lt;= &quot;10&quot;;
+				WHEN s_RtypeComp =&gt;
+					RegWrite &lt;= &apos;1&apos;;
+					MemtoReg &lt;= &apos;0&apos;;
+				WHEN s_Branch =&gt;
+					ALUSrcA &lt;= &apos;1&apos;;
+					ALUSrcB &lt;= &quot;00&quot;;
+					ALUOp &lt;= &quot;01&quot;;
+					PCWriteCond &lt;= &apos;1&apos;;
+					PCSource &lt;= &apos;1&apos;;
+				END CASE;
+			END PROCESS;
 	END output_control_logic;</string>
         </entry>
         <entry>
           <string>externalOutputs</string>
-          <string>IRWrite,MemtoReg,MemWrite,MemRead,IorD,PCWrite,PCWriteCond,PCSource,ALUOp,ALUSrcB:2,ALUSrcA,RegWrite</string>
+          <string>IRWrite,MemtoReg,MemWrite,MemRead,IorD,PCWrite,PCWriteCond,PCSource,ALUOp:2,ALUSrcB:2,ALUSrcA,RegWrite</string>
         </entry>
       </elementAttributes>
-      <pos x="1720" y="860"/>
+      <pos x="1980" y="740"/>
+    </visualElement>
+    <visualElement>
+      <elementName>External</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Label</string>
+          <string>imm_gen</string>
+        </entry>
+        <entry>
+          <string>applicationType</string>
+          <appType>GHDL</appType>
+        </entry>
+        <entry>
+          <string>externalInputs</string>
+          <string>instruction:32</string>
+        </entry>
+        <entry>
+          <string>Code</string>
+          <string>LIBRARY ieee;
+USE ieee.std_logic_1164.all;
+
+ENTITY imm_gen IS
+	PORT(
+		instruction : IN  STD_LOGIC_VECTOR(31 downto 0);
+		imm_out     : OUT STD_LOGIC_VECTOR(31 downto 0)
+	);
+END imm_gen;
+
+ARCHITECTURE behavioral OF imm_gen IS
+	ALIAS opcode : STD_LOGIC_VECTOR(6 downto 0) IS instruction(6 downto 0);
+BEGIN
+
+	PROCESS(instruction, opcode)
+	BEGIN
+		CASE opcode IS
+			-- Tipo-I (ex: Load, addi)
+			WHEN &quot;0000011&quot; | &quot;0010011&quot; =&gt;
+				imm_out &lt;= (31 downto 12 =&gt; instruction(31)) &amp; instruction(31 downto 20);
+
+			-- Tipo-S (ex: Store)
+			WHEN &quot;0100011&quot; =&gt;
+				imm_out &lt;= (31 downto 12 =&gt; instruction(31)) &amp; instruction(31 downto 25) &amp; instruction(11 downto 7);
+
+			-- Tipo-B (ex: Branch / Desvios)
+			WHEN &quot;1100011&quot; =&gt;
+				imm_out &lt;= (31 downto 12 =&gt; instruction(31)) &amp; instruction(7) &amp; instruction(30 downto 25) &amp; instruction(11 downto 8) &amp; &apos;0&apos;;
+
+			-- Padrão caso não utilize imediato
+			WHEN OTHERS =&gt;
+				imm_out &lt;= (others =&gt; &apos;0&apos;);
+		END CASE;
+	END PROCESS;
+
+END behavioral;</string>
+        </entry>
+        <entry>
+          <string>externalOutputs</string>
+          <string>imm_out:32</string>
+        </entry>
+      </elementAttributes>
+      <pos x="860" y="1400"/>
+    </visualElement>
+    <visualElement>
+      <elementName>In</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Bits</string>
+          <int>32</int>
+        </entry>
+      </elementAttributes>
+      <pos x="760" y="1400"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Out</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Bits</string>
+          <int>32</int>
+        </entry>
+      </elementAttributes>
+      <pos x="1000" y="1400"/>
     </visualElement>
     <visualElement>
       <elementName>External</elementName>
@@ -702,71 +878,118 @@ ARCHITECTURE output_control_logic OF output_control IS
         </entry>
         <entry>
           <string>Label</string>
-          <string>output_control</string>
+          <string>ALU_control</string>
         </entry>
         <entry>
           <string>externalInputs</string>
-          <string>opcode:7</string>
+          <string>opcode:7,funct3:3,funct7:7,ALUOp:2</string>
         </entry>
         <entry>
           <string>Code</string>
           <string>LIBRARY ieee;
 USE ieee.std_logic_1164.all;
-USE ieee.numeric_std.all;
 
-ENTITY output_control IS
+ENTITY ALU_control IS
 	PORT(
-		opcode : IN STD_LOGIC_VECTOR(6 downto 0);
-		IRWrite : OUT STD_LOGIC;
-		MemtoReg : OUT STD_LOGIC;
-		MemWrite : OUT STD_LOGIC;
-		MemRead : OUT STD_LOGIC;
-		IorD : OUT STD_LOGIC;
-		PCWrite : OUT STD_LOGIC;
-		PCWriteCond : OUT STD_LOGIC;
-		PCSource : OUT STD_LOGIC;
-		ALUOp : OUT STD_LOGIC;
-		ALUSrcB : OUT STD_LOGIC_VECTOR (1 downto 0);
-		ALUSrcA : OUT STD_LOGIC;
-		RegWrite : OUT STD_LOGIC
+		opcode : IN  STD_LOGIC_VECTOR(6 downto 0);
+		funct3 : IN  STD_LOGIC_VECTOR(2 downto 0);
+		funct7 : IN  STD_LOGIC_VECTOR(6 downto 0);
+		ALUOp  : IN STD_LOGIC_VECTOR(1 downto 0);
+		selector : OUT STD_LOGIC_VECTOR(1 downto 0)
 	);
-END output_control;
+END ALU_control;
 
-ARCHITECTURE output_control_logic OF output_control IS
-
-	CONSTANT opAritmetica : STD_LOGIC_VECTOR(6 downto 0) := &quot;0110011&quot;;
-	CONSTANT opAritmeticaImm : STD_LOGIC_VECTOR(6 downto 0) := &quot;0010011&quot;;
-	CONSTANT LW : STD_LOGIC_VECTOR(6 downto 0) := &quot;0000011&quot;;
-	CONSTANT SW : STD_LOGIC_VECTOR(6 downto 0) := &quot;0100011&quot;;
-	CONSTANT LUI : STD_LOGIC_VECTOR(6 downto 0) := &quot;0110111&quot;;
-	CONSTANT AUIPC : STD_LOGIC_VECTOR(6 downto 0) := &quot;0010111&quot;;
-	CONSTANT JALR : STD_LOGIC_VECTOR(6 downto 0) := &quot;1100111&quot;;
-	CONSTANT JAL : STD_LOGIC_VECTOR(6 downto 0) := &quot;1101111&quot;;
-	CONSTANT BRANCH : STD_LOGIC_VECTOR(6 downto 0) := &quot;1100111&quot;;
-
-	BEGIN
-		RegWrite &lt;= &apos;1&apos; WHEN (opcode = opAritmetica OR opcode = opAritmeticaImm
-			OR opcode = LW OR opcode = LUI OR opcode = JALR OR opcode = JAL) ELSE
-			    &apos;0&apos;;
-
-		ALUSrcA &lt;= &apos;1&apos; WHEN (opcode = opAritmetica OR opcode = opAritmeticaImm
-			OR opcode = LW OR opcode = SW OR opcode = LUI OR opcode = BRANCH) ELSE
-			    &apos;0&apos;;
-
-		ALUSrcB &lt;= &quot;00&quot; WHEN (opcode = opAritmetica OR opcode = BRANCH) ELSE
-			    &quot;10&quot; WHEN (opcode = opAritmeticaImm OR opcode = LW OR 
-				opcode = LW OR opcode = LUI OR opcode = AUIPC OR opcode = JAL
-				OR opcode = JALR) ELSE 
-				&quot;01&quot;;
-
-	END output_control_logic;</string>
+ARCHITECTURE behavioral OF ALU_control IS
+	
+BEGIN
+	PROCESS(ALUOp, opcode, funct3, funct7)
+		BEGIN
+			selector &lt;= &quot;00&quot;;
+			IF(ALUOp = &quot;00&quot; OR opcode = &quot;0000011&quot; OR opcode = &quot;0100011&quot;) THEN
+				selector &lt;= &quot;00&quot;;
+			ELSIF(ALUOp = &quot;01&quot; OR opcode = &quot;1100111&quot;) THEN
+				selector &lt;= &quot;01&quot;;
+			ELSE
+				IF(opcode = &quot;0110011&quot;) THEN
+					IF(funct7 = &quot;0000000&quot;) THEN
+						IF(funct3 = &quot;000&quot;) THEN
+							selector &lt;= &quot;00&quot;;
+						ELSIF(funct3 = &quot;111&quot;) THEN
+							selector &lt;= &quot;10&quot;;
+						ELSIF(funct3 = &quot;110&quot;) THEN
+							selector &lt;= &quot;11&quot;;
+						END IF;
+					ELSIF(funct7 = &quot;0100000&quot;) THEN
+						selector &lt;= &quot;01&quot;;
+					END IF;
+				END IF;
+			END IF;
+		END PROCESS;
+END behavioral;</string>
         </entry>
         <entry>
           <string>externalOutputs</string>
-          <string>IRWrite,MemtoReg,MemWrite,MemRead,IorD,PCWrite,PCWriteCond,PCSource,ALUOp,ALUSrcB:2,ALUSrcA,RegWrite</string>
+          <string>selector:2</string>
         </entry>
       </elementAttributes>
-      <pos x="1980" y="780"/>
+      <pos x="1340" y="1360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>RAMDualPort</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Label</string>
+          <string>Memory</string>
+        </entry>
+        <entry>
+          <string>AddrBits</string>
+          <int>12</int>
+        </entry>
+        <entry>
+          <string>Bits</string>
+          <int>32</int>
+        </entry>
+      </elementAttributes>
+      <pos x="400" y="1260"/>
+    </visualElement>
+    <visualElement>
+      <elementName>External</elementName>
+      <elementAttributes>
+        <entry>
+          <string>applicationType</string>
+          <appType>GHDL</appType>
+        </entry>
+        <entry>
+          <string>Label</string>
+          <string>splitter</string>
+        </entry>
+        <entry>
+          <string>externalInputs</string>
+          <string>address_in:32</string>
+        </entry>
+        <entry>
+          <string>Code</string>
+          <string>LIBRARY ieee;
+USE ieee.std_logic_1164.all;
+
+ENTITY splitter IS
+	PORT(
+		address_in : IN  STD_LOGIC_VECTOR(31 downto 0);
+		address_out : OUT STD_LOGIC_VECTOR(11 downto 0)
+	);
+END splitter;
+
+ARCHITECTURE behavioral OF splitter IS
+BEGIN
+	address_out &lt;= address_in(13 downto 2);
+END behavioral;</string>
+        </entry>
+        <entry>
+          <string>externalOutputs</string>
+          <string>address_out:12</string>
+        </entry>
+      </elementAttributes>
+      <pos x="760" y="1200"/>
     </visualElement>
   </visualElements>
   <wires>
@@ -929,6 +1152,14 @@ ARCHITECTURE output_control_logic OF output_control IS
     <wire>
       <p1 x="1160" y="500"/>
       <p2 x="1280" y="500"/>
+    </wire>
+    <wire>
+      <p1 x="760" y="1400"/>
+      <p2 x="860" y="1400"/>
+    </wire>
+    <wire>
+      <p1 x="920" y="1400"/>
+      <p2 x="1000" y="1400"/>
     </wire>
     <wire>
       <p1 x="620" y="700"/>
