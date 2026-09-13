@@ -7,7 +7,6 @@ ENTITY pipelineRegIDEX IS
 		instruction : IN STD_LOGIC_VECTOR(31 downto 0);
 		Imm : IN STD_LOGIC_VECTOR(31 downto 0);
 		eq: IN STD_LOGIC;
-
 		RegWrite : IN STD_LOGIC;
 		MemToReg : IN STD_LOGIC;
 
@@ -21,6 +20,7 @@ ENTITY pipelineRegIDEX IS
 		Rg1 : IN STD_LOGIC_VECTOR(31 downto 0);
 		Rg2 : IN STD_LOGIC_VECTOR(31 downto 0);
 		CLK : IN STD_LOGIC;
+		Flush : IN STD_LOGIC;
 		instructionOutput : OUT STD_LOGIC_VECTOR(31 downto 0);
 		ImmOut : OUT STD_LOGIC_VECTOR(31 downto 0);
 		eqOut: OUT STD_LOGIC;
@@ -45,7 +45,24 @@ ARCHITECTURE pipelineRegIDEX_logic OF pipelineRegIDEX IS
 	
 		PROCESS(CLK)
 			BEGIN
-				IF RISING_EDGE(CLK) THEN
+				IF(Flush = '1') THEN
+					instructionOutput <= x"00000013";
+					RegWriteOut <= '0';
+					memToRegOut <= '0';
+
+					BranchOut <= '0';
+					MemWriteOut <= '0';
+					MemReadOut <= '0';
+					
+					AluOpOut <= (others => '0');
+					AluSrcOut <= '0';
+
+					ImmOut <= (others => '0');
+					Rg1Out <= (others => '0');
+					Rg2Out <= (others => '0');
+					eqOut <= '0';
+
+				ELSIF RISING_EDGE(CLK) THEN
 					instructionOutput <= instruction;
 
 					RegWriteOut <= RegWrite;
@@ -58,10 +75,10 @@ ARCHITECTURE pipelineRegIDEX_logic OF pipelineRegIDEX IS
 					AluOpOut <= AluOp;
 					AluSrcOut <= AluSrc;
 
-					ImmOut <= Imm;
 					Rg1Out <= Rg1;
 					Rg2Out <= Rg2;
 					eqOut <= eq;
+					ImmOut <= Imm;
 				ELSE
 					instructionOutput <= instructionOutput;
 					RegWriteOut <= RegWriteOut;
@@ -77,6 +94,7 @@ ARCHITECTURE pipelineRegIDEX_logic OF pipelineRegIDEX IS
 					Rg1Out <= Rg1Out;
 					Rg2Out <= Rg2Out;
 					eqOut <= eq;
+					ImmOut <= ImmOut;
 				END IF;
 		END PROCESS;
 

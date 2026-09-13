@@ -19,11 +19,11 @@ ARCHITECTURE pipelineReg_logic OF pipelineReg IS
 	
 		PROCESS(CLK)
 			BEGIN
-				IF RISING_EDGE(CLK) THEN
-					IF(IFFlush = '1') THEN
+				IF(IFFlush = '1') THEN
 						instructionOutput <= "00000000000000000000000000010011";
-						PCOut <= (others => '0');
-					ELSIF IFIDWrite = '1' THEN
+						PCOut <= PCOut;
+				ELSIF RISING_EDGE(CLK) THEN
+					IF IFIDWrite = '1' THEN
 						instructionOutput <= instruction;
 						PCOut <= PC;
 					ELSE

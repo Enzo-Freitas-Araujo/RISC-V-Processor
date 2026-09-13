@@ -118,11 +118,11 @@ ARCHITECTURE pipelineReg_logic OF pipelineReg IS
 	
 		PROCESS(CLK)
 			BEGIN
-				IF RISING_EDGE(CLK) THEN
-					IF(IFFlush = &apos;1&apos;) THEN
+				IF(IFFlush = &apos;1&apos;) THEN
 						instructionOutput &lt;= &quot;00000000000000000000000000010011&quot;;
-						PCOut &lt;= (others =&gt; &apos;0&apos;);
-					ELSIF IFIDWrite = &apos;1&apos; THEN
+						PCOut &lt;= PCOut;
+				ELSIF RISING_EDGE(CLK) THEN
+					IF IFIDWrite = &apos;1&apos; THEN
 						instructionOutput &lt;= instruction;
 						PCOut &lt;= PC;
 					ELSE
@@ -228,12 +228,13 @@ USE ieee.numeric_std.all;
 
 ENTITY register_block IS
 	PORT(
-		instruction : IN STD_LOGIC_VECTOR(31 downto 0);
-		instruction2 : IN STD_LOGIC_VECTOR(31 downto 0);
-		CLK : IN STD_LOGIC;
-		reg_write : IN STD_LOGIC;
-		rgw_data : IN STD_LOGIC_VECTOR(31 downto 0);
-		rg1_data , rg2_data : OUT STD_LOGIC_VECTOR(31 downto 0)
+		instruction  : IN  STD_LOGIC_VECTOR(31 downto 0); -- Instrução no estágio ID
+		instruction2 : IN  STD_LOGIC_VECTOR(31 downto 0); -- Instrução no estágio WB
+		CLK          : IN  STD_LOGIC;
+		reg_write    : IN  STD_LOGIC;
+		rgw_data     : IN  STD_LOGIC_VECTOR(31 downto 0);
+		rg1_data     : OUT STD_LOGIC_VECTOR(31 downto 0);
+		rg2_data     : OUT STD_LOGIC_VECTOR(31 downto 0)
 	);
 END register_block;
 
@@ -241,33 +242,40 @@ ARCHITECTURE register_logic OF register_block IS
 
 	type reg_array is array (0 to 31) of std_logic_vector(31 downto 0);
 	signal registers : reg_array := (others =&gt; (others =&gt; &apos;0&apos;));
-	signal value1 : STD_LOGIC_VECTOR(31 downto 0);
-	signal value2 : STD_LOGIC_VECTOR(31 downto 0);
 	signal rg1, rg2, rgw : STD_LOGIC_VECTOR(4 downto 0);
 
+BEGIN
+	-- Extração direta dos índices dos registradores
+	rg1 &lt;= instruction(19 downto 15);
+	rg2 &lt;= instruction(24 downto 20);
+	rgw &lt;= instruction2(11 downto 7);
+
+	------------------------------------------------------------------
+	-- 1. ESCRITA SÍNCRONA (Acontece APENAS na borda de subida do CLK)
+	------------------------------------------------------------------
+	PROCESS(CLK)
 	BEGIN
-		rg1 &lt;= instruction(19 downto 15);
-		rg2 &lt;= instruction(24 downto 20);
-		rgw &lt;= instruction2(11 downto 7);
-		PROCESS(CLK)
-			BEGIN
-				IF (RISING_EDGE(CLK)) THEN
-					IF (reg_write = &apos;1&apos; AND rgw /= &quot;00000&quot;) THEN
-						registers(to_integer(unsigned(rgw))) &lt;= rgw_data;
-					END IF;
-				END IF;
-				IF (reg_write = &apos;1&apos;) AND (rgw /= &quot;00000&quot;) AND (rgw = rg1) THEN
-    					rg1_data &lt;= rgw_data;
-				ELSE
-    					rg1_data &lt;= registers(to_integer(unsigned(rg1)));
-				END IF;
-				IF (reg_write = &apos;1&apos;) AND (rgw /= &quot;00000&quot;) AND (rgw = rg2) THEN
-    					rg2_data &lt;= rgw_data;
-				ELSE
-    					rg2_data &lt;= registers(to_integer(unsigned(rg2)));
-				END IF;
-		END PROCESS;
-	END register_logic;</string>
+		IF RISING_EDGE(CLK) THEN
+			IF (reg_write = &apos;1&apos; AND rgw /= &quot;00000&quot;) THEN
+				registers(to_integer(unsigned(rgw))) &lt;= rgw_data;
+			END IF;
+		END IF;
+	END PROCESS;
+
+	------------------------------------------------------------------
+	-- 2. LEITURA COMBINACIONAL COM BYPASS (Responde INSTANTANEAMENTE)
+	------------------------------------------------------------------
+	-- Leitura da porta 1 (rg1):
+	rg1_data &lt;= (others =&gt; &apos;0&apos;) WHEN (rg1 = &quot;00000&quot;) ELSE
+	            rgw_data       WHEN (reg_write = &apos;1&apos; AND rgw /= &quot;00000&quot; AND rgw = rg1) ELSE
+	            registers(to_integer(unsigned(rg1)));
+
+	-- Leitura da porta 2 (rg2):
+	rg2_data &lt;= (others =&gt; &apos;0&apos;) WHEN (rg2 = &quot;00000&quot;) ELSE
+	            rgw_data       WHEN (reg_write = &apos;1&apos; AND rgw /= &quot;00000&quot; AND rgw = rg2) ELSE
+	            registers(to_integer(unsigned(rg2)));
+
+END register_logic;</string>
         </entry>
         <entry>
           <string>externalOutputs</string>
@@ -289,7 +297,7 @@ ARCHITECTURE register_logic OF register_block IS
         </entry>
         <entry>
           <string>externalInputs</string>
-          <string>instruction:32,Imm:32,eq,RegWrite,MemToReg,memRead,memWrite,Branch,ALUOp:2,ALUSrc,Rg1:32,Rg2:32,CLK</string>
+          <string>instruction:32,Imm:32,eq,RegWrite,MemToReg,memRead,memWrite,Branch,ALUOp:2,ALUSrc,Rg1:32,Rg2:32,CLK,Flush</string>
         </entry>
         <entry>
           <string>Code</string>
@@ -302,7 +310,6 @@ ENTITY pipelineRegIDEX IS
 		instruction : IN STD_LOGIC_VECTOR(31 downto 0);
 		Imm : IN STD_LOGIC_VECTOR(31 downto 0);
 		eq: IN STD_LOGIC;
-
 		RegWrite : IN STD_LOGIC;
 		MemToReg : IN STD_LOGIC;
 
@@ -316,6 +323,7 @@ ENTITY pipelineRegIDEX IS
 		Rg1 : IN STD_LOGIC_VECTOR(31 downto 0);
 		Rg2 : IN STD_LOGIC_VECTOR(31 downto 0);
 		CLK : IN STD_LOGIC;
+		Flush : IN STD_LOGIC;
 		instructionOutput : OUT STD_LOGIC_VECTOR(31 downto 0);
 		ImmOut : OUT STD_LOGIC_VECTOR(31 downto 0);
 		eqOut: OUT STD_LOGIC;
@@ -340,7 +348,24 @@ ARCHITECTURE pipelineRegIDEX_logic OF pipelineRegIDEX IS
 	
 		PROCESS(CLK)
 			BEGIN
-				IF RISING_EDGE(CLK) THEN
+				IF(Flush = &apos;1&apos;) THEN
+					instructionOutput &lt;= x&quot;00000013&quot;;
+					RegWriteOut &lt;= &apos;0&apos;;
+					memToRegOut &lt;= &apos;0&apos;;
+
+					BranchOut &lt;= &apos;0&apos;;
+					MemWriteOut &lt;= &apos;0&apos;;
+					MemReadOut &lt;= &apos;0&apos;;
+					
+					AluOpOut &lt;= (others =&gt; &apos;0&apos;);
+					AluSrcOut &lt;= &apos;0&apos;;
+
+					ImmOut &lt;= (others =&gt; &apos;0&apos;);
+					Rg1Out &lt;= (others =&gt; &apos;0&apos;);
+					Rg2Out &lt;= (others =&gt; &apos;0&apos;);
+					eqOut &lt;= &apos;0&apos;;
+
+				ELSIF RISING_EDGE(CLK) THEN
 					instructionOutput &lt;= instruction;
 
 					RegWriteOut &lt;= RegWrite;
@@ -353,10 +378,10 @@ ARCHITECTURE pipelineRegIDEX_logic OF pipelineRegIDEX IS
 					AluOpOut &lt;= AluOp;
 					AluSrcOut &lt;= AluSrc;
 
-					ImmOut &lt;= Imm;
 					Rg1Out &lt;= Rg1;
 					Rg2Out &lt;= Rg2;
 					eqOut &lt;= eq;
+					ImmOut &lt;= Imm;
 				ELSE
 					instructionOutput &lt;= instructionOutput;
 					RegWriteOut &lt;= RegWriteOut;
@@ -372,6 +397,7 @@ ARCHITECTURE pipelineRegIDEX_logic OF pipelineRegIDEX IS
 					Rg1Out &lt;= Rg1Out;
 					Rg2Out &lt;= Rg2Out;
 					eqOut &lt;= eq;
+					ImmOut &lt;= ImmOut;
 				END IF;
 		END PROCESS;
 
@@ -414,7 +440,8 @@ END comparator;
 
 ARCHITECTURE behavioral OF comparator IS
 BEGIN
-	result &lt;= &apos;1&apos; WHEN rg1 = rg2 ELSE
+
+	result &lt;= &apos;1&apos; WHEN (rg1 = rg2) ELSE
 		&apos;0&apos;;
 END behavioral;</string>
         </entry>
@@ -467,7 +494,7 @@ ARCHITECTURE MUX_logic OF MUX_3inputs IS
           <string>output:32</string>
         </entry>
       </elementAttributes>
-      <pos x="1680" y="2200"/>
+      <pos x="1740" y="2200"/>
     </visualElement>
     <visualElement>
       <elementName>External</elementName>
@@ -511,7 +538,7 @@ ARCHITECTURE MUX_logic OF MUX_3inputs IS
           <string>output:32</string>
         </entry>
       </elementAttributes>
-      <pos x="1680" y="2380"/>
+      <pos x="1740" y="2380"/>
     </visualElement>
     <visualElement>
       <elementName>External</elementName>
@@ -1118,16 +1145,6 @@ ARCHITECTURE MUX_logic OF MUX_2inputs_multOUT IS
       <pos x="220" y="2520"/>
     </visualElement>
     <visualElement>
-      <elementName>And</elementName>
-      <elementAttributes>
-        <entry>
-          <string>wideShape</string>
-          <boolean>true</boolean>
-        </entry>
-      </elementAttributes>
-      <pos x="2480" y="2160"/>
-    </visualElement>
-    <visualElement>
       <elementName>Ground</elementName>
       <elementAttributes/>
       <pos x="140" y="2420"/>
@@ -1294,7 +1311,7 @@ END behavioral;</string>
         </entry>
         <entry>
           <string>externalInputs</string>
-          <string>IF_ID_Instruction:32,Branch_ID,ID_EX_MemRead,ID_EX_RegWrite,ID_EX_Instruction:32</string>
+          <string>IF_ID_Instruction:32,Branch_ID,ID_EX_MemRead,ID_EX_RegWrite,ID_EX_Instruction:32,EX_MEM_MemRead,EX_MEM_RegWrite,EX_MEM_Instruction:32</string>
         </entry>
         <entry>
           <string>Code</string>
@@ -1311,6 +1328,10 @@ ENTITY HazardDetectionUnit IS
 		ID_EX_MemRead     : IN STD_LOGIC;
 		ID_EX_RegWrite    : IN STD_LOGIC;
 		ID_EX_Instruction  : IN STD_LOGIC_VECTOR(31 downto 0);
+
+		EX_MEM_MemRead     : IN STD_LOGIC;
+		EX_MEM_RegWrite    : IN STD_LOGIC;
+		EX_MEM_Instruction  : IN STD_LOGIC_VECTOR(31 downto 0);
 		
 		PCWrite           : OUT STD_LOGIC;
 		IF_ID_Write       : OUT STD_LOGIC;
@@ -1320,27 +1341,33 @@ END HazardDetectionUnit;
 
 ARCHITECTURE behavioral OF HazardDetectionUnit IS
 	SIGNAL ID_EX_RegisterRd : STD_LOGIC_VECTOR(4 downto 0);
+	SIGNAL EX_MEM_RegisterRd : STD_LOGIC_VECTOR(4 downto 0);
 	SIGNAL IF_ID_Rs1 : STD_LOGIC_VECTOR(4 downto 0);
 	SIGNAL IF_ID_Rs2 : STD_LOGIC_VECTOR(4 downto 0);
 BEGIN
 	ID_EX_RegisterRd &lt;= ID_EX_Instruction(11 downto 7);
+	EX_MEM_RegisterRd &lt;= EX_MEM_Instruction(11 downto 7);
 	IF_ID_Rs1 &lt;= IF_ID_Instruction(19 downto 15);
 	IF_ID_Rs2 &lt;= IF_ID_Instruction(24 downto 20);
 	
 	PROCESS(IF_ID_Rs1, IF_ID_Rs2, Branch_ID, 
-	        ID_EX_MemRead, ID_EX_RegWrite, ID_EX_RegisterRd)
+	        ID_EX_MemRead, ID_EX_RegWrite, ID_EX_RegisterRd, EX_MEM_RegWrite, EX_MEM_RegisterRd)
 		
 		VARIABLE stall_load_use : BOOLEAN;
 		VARIABLE stall_branch   : BOOLEAN;
 		
 	BEGIN
-		stall_load_use := (ID_EX_MemRead = &apos;1&apos;) AND 
+		stall_load_use := ((ID_EX_MemRead = &apos;1&apos;) AND 
 		                  (ID_EX_RegisterRd /= &quot;00000&quot;) AND 
-		                  ((ID_EX_RegisterRd = IF_ID_Rs1) OR (ID_EX_RegisterRd = IF_ID_Rs2));
+		                  ((ID_EX_RegisterRd = IF_ID_Rs1) OR (ID_EX_RegisterRd = IF_ID_Rs2)));
 
-		stall_branch := (Branch_ID = &apos;1&apos;) AND (
+		stall_branch := ((Branch_ID = &apos;1&apos;) AND 
 			((ID_EX_RegWrite = &apos;1&apos;) AND (ID_EX_RegisterRd /= &quot;00000&quot;) AND 
-			 ((ID_EX_RegisterRd = IF_ID_Rs1) OR (ID_EX_RegisterRd = IF_ID_Rs2))));
+			 ((ID_EX_RegisterRd = IF_ID_Rs1) OR (ID_EX_RegisterRd = IF_ID_Rs2))))
+			OR 
+			((Branch_ID = &apos;1&apos;) AND
+			((EX_MEM_RegWrite = &apos;1&apos;) AND (EX_MEM_RegisterRd /= &quot;00000&quot;) AND 
+			 ((EX_MEM_RegisterRd = IF_ID_Rs1) OR (EX_MEM_RegisterRd = IF_ID_Rs2))));
 
 		IF stall_load_use OR stall_branch THEN
 			PCWrite     &lt;= &apos;0&apos;; -- Congela o Program Counter (PC)
@@ -1455,6 +1482,63 @@ END behavioral;</string>
       </elementAttributes>
       <pos x="2540" y="2300"/>
     </visualElement>
+    <visualElement>
+      <elementName>External</elementName>
+      <elementAttributes>
+        <entry>
+          <string>applicationType</string>
+          <appType>GHDL</appType>
+        </entry>
+        <entry>
+          <string>Label</string>
+          <string>MUX_2inputs</string>
+        </entry>
+        <entry>
+          <string>externalInputs</string>
+          <string>enter1:32,enter2:32,selector</string>
+        </entry>
+        <entry>
+          <string>Code</string>
+          <string>LIBRARY ieee;
+USE ieee.std_logic_1164.all;
+
+ENTITY MUX_2inputs IS
+	PORT(
+		enter1, enter2 : IN STD_LOGIC_VECTOR (31 downto 0);
+		selector : IN STD_LOGIC;
+		output : OUT STD_LOGIC_VECTOR (31 downto 0)
+	);
+END MUX_2inputs;
+
+ARCHITECTURE MUX_logic OF MUX_2inputs IS
+	BEGIN
+		output &lt;= enter1 WHEN selector = &apos;0&apos; ELSE
+			enter2;
+
+	END MUX_logic;
+--------------------------------------------------------------------------------</string>
+        </entry>
+        <entry>
+          <string>externalOutputs</string>
+          <string>output:32</string>
+        </entry>
+      </elementAttributes>
+      <pos x="1900" y="2220"/>
+    </visualElement>
+    <visualElement>
+      <elementName>And</elementName>
+      <elementAttributes>
+        <entry>
+          <string>rotation</string>
+          <rotation rotation="2"/>
+        </entry>
+        <entry>
+          <string>wideShape</string>
+          <boolean>true</boolean>
+        </entry>
+      </elementAttributes>
+      <pos x="1220" y="2660"/>
+    </visualElement>
   </visualElements>
   <wires>
     <wire>
@@ -1470,12 +1554,8 @@ END behavioral;</string>
       <p2 x="1780" y="1920"/>
     </wire>
     <wire>
-      <p1 x="740" y="1540"/>
-      <p2 x="1100" y="1540"/>
-    </wire>
-    <wire>
       <p1 x="1580" y="2820"/>
-      <p2 x="1600" y="2820"/>
+      <p2 x="1660" y="2820"/>
     </wire>
     <wire>
       <p1 x="1420" y="2820"/>
@@ -1486,8 +1566,12 @@ END behavioral;</string>
       <p2 x="1280" y="2180"/>
     </wire>
     <wire>
-      <p1 x="2560" y="2180"/>
-      <p2 x="2580" y="2180"/>
+      <p1 x="2380" y="2180"/>
+      <p2 x="2480" y="2180"/>
+    </wire>
+    <wire>
+      <p1 x="740" y="1540"/>
+      <p2 x="1100" y="1540"/>
     </wire>
     <wire>
       <p1 x="840" y="1800"/>
@@ -1499,6 +1583,14 @@ END behavioral;</string>
     </wire>
     <wire>
       <p1 x="960" y="1800"/>
+      <p2 x="1020" y="1800"/>
+    </wire>
+    <wire>
+      <p1 x="1620" y="1800"/>
+      <p2 x="1660" y="1800"/>
+    </wire>
+    <wire>
+      <p1 x="1020" y="1800"/>
       <p2 x="1220" y="1800"/>
     </wire>
     <wire>
@@ -1506,16 +1598,8 @@ END behavioral;</string>
       <p2 x="1340" y="2440"/>
     </wire>
     <wire>
-      <p1 x="1400" y="2440"/>
-      <p2 x="1480" y="2440"/>
-    </wire>
-    <wire>
-      <p1 x="1620" y="2440"/>
-      <p2 x="1680" y="2440"/>
-    </wire>
-    <wire>
-      <p1 x="480" y="2440"/>
-      <p2 x="500" y="2440"/>
+      <p1 x="1680" y="2440"/>
+      <p2 x="1740" y="2440"/>
     </wire>
     <wire>
       <p1 x="-380" y="2440"/>
@@ -1538,19 +1622,27 @@ END behavioral;</string>
       <p2 x="2280" y="2440"/>
     </wire>
     <wire>
-      <p1 x="880" y="2060"/>
-      <p2 x="920" y="2060"/>
+      <p1 x="1400" y="2440"/>
+      <p2 x="1540" y="2440"/>
+    </wire>
+    <wire>
+      <p1 x="480" y="2440"/>
+      <p2 x="500" y="2440"/>
     </wire>
     <wire>
       <p1 x="1520" y="2060"/>
       <p2 x="2180" y="2060"/>
     </wire>
     <wire>
+      <p1 x="880" y="2060"/>
+      <p2 x="1000" y="2060"/>
+    </wire>
+    <wire>
       <p1 x="1080" y="2320"/>
       <p2 x="1100" y="2320"/>
     </wire>
     <wire>
-      <p1 x="1760" y="2320"/>
+      <p1 x="1820" y="2320"/>
       <p2 x="1980" y="2320"/>
     </wire>
     <wire>
@@ -1578,10 +1670,6 @@ END behavioral;</string>
       <p2 x="2940" y="2320"/>
     </wire>
     <wire>
-      <p1 x="2040" y="2320"/>
-      <p2 x="2100" y="2320"/>
-    </wire>
-    <wire>
       <p1 x="2340" y="2320"/>
       <p2 x="2380" y="2320"/>
     </wire>
@@ -1594,12 +1682,16 @@ END behavioral;</string>
       <p2 x="3140" y="2320"/>
     </wire>
     <wire>
-      <p1 x="840" y="1680"/>
-      <p2 x="1660" y="1680"/>
+      <p1 x="2040" y="2320"/>
+      <p2 x="2100" y="2320"/>
     </wire>
     <wire>
       <p1 x="1720" y="1680"/>
       <p2 x="1780" y="1680"/>
+    </wire>
+    <wire>
+      <p1 x="1220" y="1680"/>
+      <p2 x="1660" y="1680"/>
     </wire>
     <wire>
       <p1 x="160" y="2580"/>
@@ -1614,12 +1706,12 @@ END behavioral;</string>
       <p2 x="680" y="2580"/>
     </wire>
     <wire>
-      <p1 x="480" y="1560"/>
+      <p1 x="-380" y="1560"/>
       <p2 x="660" y="1560"/>
     </wire>
     <wire>
       <p1 x="1580" y="2840"/>
-      <p2 x="1660" y="2840"/>
+      <p2 x="1720" y="2840"/>
     </wire>
     <wire>
       <p1 x="1500" y="2840"/>
@@ -1631,27 +1723,31 @@ END behavioral;</string>
     </wire>
     <wire>
       <p1 x="880" y="2200"/>
-      <p2 x="940" y="2200"/>
+      <p2 x="1000" y="2200"/>
     </wire>
     <wire>
       <p1 x="1460" y="2200"/>
-      <p2 x="1680" y="2200"/>
+      <p2 x="1740" y="2200"/>
     </wire>
     <wire>
       <p1 x="-80" y="2200"/>
       <p2 x="-40" y="2200"/>
     </wire>
     <wire>
-      <p1 x="2460" y="2200"/>
-      <p2 x="2480" y="2200"/>
+      <p1 x="1880" y="2200"/>
+      <p2 x="1980" y="2200"/>
     </wire>
     <wire>
-      <p1 x="940" y="2200"/>
-      <p2 x="1120" y="2200"/>
+      <p1 x="2320" y="2200"/>
+      <p2 x="2420" y="2200"/>
     </wire>
     <wire>
       <p1 x="800" y="2200"/>
       <p2 x="820" y="2200"/>
+    </wire>
+    <wire>
+      <p1 x="1000" y="2200"/>
+      <p2 x="1120" y="2200"/>
     </wire>
     <wire>
       <p1 x="820" y="1820"/>
@@ -1666,20 +1762,24 @@ END behavioral;</string>
       <p2 x="1200" y="1820"/>
     </wire>
     <wire>
+      <p1 x="1560" y="1820"/>
+      <p2 x="2380" y="1820"/>
+    </wire>
+    <wire>
       <p1 x="220" y="2460"/>
       <p2 x="240" y="2460"/>
     </wire>
     <wire>
       <p1 x="2380" y="2460"/>
-      <p2 x="2620" y="2460"/>
+      <p2 x="2480" y="2460"/>
     </wire>
     <wire>
       <p1 x="1940" y="2460"/>
       <p2 x="1960" y="2460"/>
     </wire>
     <wire>
-      <p1 x="1660" y="2460"/>
-      <p2 x="1680" y="2460"/>
+      <p1 x="1720" y="2460"/>
+      <p2 x="1740" y="2460"/>
     </wire>
     <wire>
       <p1 x="440" y="2460"/>
@@ -1690,8 +1790,16 @@ END behavioral;</string>
       <p2 x="1300" y="2460"/>
     </wire>
     <wire>
+      <p1 x="1480" y="2460"/>
+      <p2 x="1620" y="2460"/>
+    </wire>
+    <wire>
       <p1 x="1300" y="2460"/>
       <p2 x="1340" y="2460"/>
+    </wire>
+    <wire>
+      <p1 x="2480" y="2460"/>
+      <p2 x="2620" y="2460"/>
     </wire>
     <wire>
       <p1 x="800" y="2080"/>
@@ -1704,14 +1812,6 @@ END behavioral;</string>
     <wire>
       <p1 x="20" y="2340"/>
       <p2 x="380" y="2340"/>
-    </wire>
-    <wire>
-      <p1 x="960" y="2340"/>
-      <p2 x="1020" y="2340"/>
-    </wire>
-    <wire>
-      <p1 x="1760" y="2340"/>
-      <p2 x="1920" y="2340"/>
     </wire>
     <wire>
       <p1 x="2040" y="2340"/>
@@ -1750,7 +1850,15 @@ END behavioral;</string>
       <p2 x="700" y="2340"/>
     </wire>
     <wire>
-      <p1 x="1920" y="2340"/>
+      <p1 x="1640" y="2340"/>
+      <p2 x="1840" y="2340"/>
+    </wire>
+    <wire>
+      <p1 x="980" y="2340"/>
+      <p2 x="1020" y="2340"/>
+    </wire>
+    <wire>
+      <p1 x="1960" y="2340"/>
       <p2 x="1980" y="2340"/>
     </wire>
     <wire>
@@ -1758,16 +1866,12 @@ END behavioral;</string>
       <p2 x="880" y="1700"/>
     </wire>
     <wire>
-      <p1 x="1500" y="1700"/>
-      <p2 x="1660" y="1700"/>
-    </wire>
-    <wire>
       <p1 x="1720" y="1700"/>
       <p2 x="1740" y="1700"/>
     </wire>
     <wire>
-      <p1 x="740" y="1580"/>
-      <p2 x="760" y="1580"/>
+      <p1 x="1500" y="1700"/>
+      <p2 x="1660" y="1700"/>
     </wire>
     <wire>
       <p1 x="1460" y="2860"/>
@@ -1775,15 +1879,15 @@ END behavioral;</string>
     </wire>
     <wire>
       <p1 x="880" y="2220"/>
-      <p2 x="960" y="2220"/>
+      <p2 x="980" y="2220"/>
     </wire>
     <wire>
       <p1 x="1400" y="2220"/>
       <p2 x="1420" y="2220"/>
     </wire>
     <wire>
-      <p1 x="1640" y="2220"/>
-      <p2 x="1680" y="2220"/>
+      <p1 x="1700" y="2220"/>
+      <p2 x="1740" y="2220"/>
     </wire>
     <wire>
       <p1 x="20" y="2220"/>
@@ -1802,8 +1906,16 @@ END behavioral;</string>
       <p2 x="2860" y="2220"/>
     </wire>
     <wire>
-      <p1 x="960" y="2220"/>
+      <p1 x="1880" y="2220"/>
+      <p2 x="1900" y="2220"/>
+    </wire>
+    <wire>
+      <p1 x="980" y="2220"/>
       <p2 x="1140" y="2220"/>
+    </wire>
+    <wire>
+      <p1 x="740" y="1580"/>
+      <p2 x="1020" y="1580"/>
     </wire>
     <wire>
       <p1 x="680" y="1840"/>
@@ -1816,6 +1928,10 @@ END behavioral;</string>
     <wire>
       <p1 x="960" y="1840"/>
       <p2 x="1180" y="1840"/>
+    </wire>
+    <wire>
+      <p1 x="1580" y="1840"/>
+      <p2 x="2400" y="1840"/>
     </wire>
     <wire>
       <p1 x="1440" y="2480"/>
@@ -1834,12 +1950,20 @@ END behavioral;</string>
       <p2 x="2600" y="2480"/>
     </wire>
     <wire>
+      <p1 x="1120" y="2480"/>
+      <p2 x="1340" y="2480"/>
+    </wire>
+    <wire>
       <p1 x="2600" y="2480"/>
       <p2 x="2920" y="2480"/>
     </wire>
     <wire>
       <p1 x="1480" y="2100"/>
       <p2 x="2220" y="2100"/>
+    </wire>
+    <wire>
+      <p1 x="-340" y="1460"/>
+      <p2 x="1000" y="1460"/>
     </wire>
     <wire>
       <p1 x="2860" y="2360"/>
@@ -1851,15 +1975,11 @@ END behavioral;</string>
     </wire>
     <wire>
       <p1 x="1400" y="2360"/>
-      <p2 x="1540" y="2360"/>
+      <p2 x="1520" y="2360"/>
     </wire>
     <wire>
       <p1 x="2160" y="2360"/>
       <p2 x="2280" y="2360"/>
-    </wire>
-    <wire>
-      <p1 x="2340" y="2360"/>
-      <p2 x="2360" y="2360"/>
     </wire>
     <wire>
       <p1 x="1960" y="2360"/>
@@ -1872,6 +1992,10 @@ END behavioral;</string>
     <wire>
       <p1 x="3000" y="2360"/>
       <p2 x="3060" y="2360"/>
+    </wire>
+    <wire>
+      <p1 x="1520" y="2360"/>
+      <p2 x="1540" y="2360"/>
     </wire>
     <wire>
       <p1 x="720" y="1720"/>
@@ -1894,6 +2018,10 @@ END behavioral;</string>
       <p2 x="1660" y="1720"/>
     </wire>
     <wire>
+      <p1 x="1220" y="2620"/>
+      <p2 x="1560" y="2620"/>
+    </wire>
+    <wire>
       <p1 x="1480" y="2880"/>
       <p2 x="1520" y="2880"/>
     </wire>
@@ -1902,8 +2030,8 @@ END behavioral;</string>
       <p2 x="1340" y="2240"/>
     </wire>
     <wire>
-      <p1 x="1740" y="2240"/>
-      <p2 x="1760" y="2240"/>
+      <p1 x="1800" y="2240"/>
+      <p2 x="1820" y="2240"/>
     </wire>
     <wire>
       <p1 x="-120" y="2240"/>
@@ -1918,8 +2046,20 @@ END behavioral;</string>
       <p2 x="820" y="2240"/>
     </wire>
     <wire>
+      <p1 x="1400" y="2240"/>
+      <p2 x="1640" y="2240"/>
+    </wire>
+    <wire>
+      <p1 x="1840" y="2240"/>
+      <p2 x="1900" y="2240"/>
+    </wire>
+    <wire>
       <p1 x="880" y="1860"/>
       <p2 x="900" y="1860"/>
+    </wire>
+    <wire>
+      <p1 x="1620" y="1860"/>
+      <p2 x="2320" y="1860"/>
     </wire>
     <wire>
       <p1 x="800" y="2120"/>
@@ -1932,14 +2072,6 @@ END behavioral;</string>
     <wire>
       <p1 x="1440" y="2760"/>
       <p2 x="3040" y="2760"/>
-    </wire>
-    <wire>
-      <p1 x="1480" y="2380"/>
-      <p2 x="1680" y="2380"/>
-    </wire>
-    <wire>
-      <p1 x="2060" y="2380"/>
-      <p2 x="2280" y="2380"/>
     </wire>
     <wire>
       <p1 x="2340" y="2380"/>
@@ -1970,6 +2102,14 @@ END behavioral;</string>
       <p2 x="100" y="2380"/>
     </wire>
     <wire>
+      <p1 x="1540" y="2380"/>
+      <p2 x="1740" y="2380"/>
+    </wire>
+    <wire>
+      <p1 x="2060" y="2380"/>
+      <p2 x="2280" y="2380"/>
+    </wire>
+    <wire>
       <p1 x="2360" y="2380"/>
       <p2 x="2400" y="2380"/>
     </wire>
@@ -1994,16 +2134,20 @@ END behavioral;</string>
       <p2 x="2440" y="2640"/>
     </wire>
     <wire>
+      <p1 x="480" y="2640"/>
+      <p2 x="1120" y="2640"/>
+    </wire>
+    <wire>
+      <p1 x="1120" y="2640"/>
+      <p2 x="1140" y="2640"/>
+    </wire>
+    <wire>
       <p1 x="760" y="2000"/>
       <p2 x="940" y="2000"/>
     </wire>
     <wire>
       <p1 x="1440" y="2900"/>
       <p2 x="1520" y="2900"/>
-    </wire>
-    <wire>
-      <p1 x="1100" y="2260"/>
-      <p2 x="1340" y="2260"/>
     </wire>
     <wire>
       <p1 x="2260" y="2260"/>
@@ -2014,8 +2158,8 @@ END behavioral;</string>
       <p2 x="2900" y="2260"/>
     </wire>
     <wire>
-      <p1 x="1620" y="2260"/>
-      <p2 x="1680" y="2260"/>
+      <p1 x="1680" y="2260"/>
+      <p2 x="1740" y="2260"/>
     </wire>
     <wire>
       <p1 x="760" y="2260"/>
@@ -2023,18 +2167,34 @@ END behavioral;</string>
     </wire>
     <wire>
       <p1 x="2340" y="2260"/>
-      <p2 x="2440" y="2260"/>
+      <p2 x="2420" y="2260"/>
     </wire>
     <wire>
       <p1 x="3020" y="2260"/>
       <p2 x="3100" y="2260"/>
     </wire>
     <wire>
+      <p1 x="1880" y="2260"/>
+      <p2 x="1900" y="2260"/>
+    </wire>
+    <wire>
+      <p1 x="1100" y="2260"/>
+      <p2 x="1340" y="2260"/>
+    </wire>
+    <wire>
+      <p1 x="1400" y="2260"/>
+      <p2 x="1560" y="2260"/>
+    </wire>
+    <wire>
+      <p1 x="2420" y="2260"/>
+      <p2 x="2440" y="2260"/>
+    </wire>
+    <wire>
       <p1 x="880" y="1880"/>
       <p2 x="1740" y="1880"/>
     </wire>
     <wire>
-      <p1 x="1620" y="2520"/>
+      <p1 x="1680" y="2520"/>
       <p2 x="2360" y="2520"/>
     </wire>
     <wire>
@@ -2050,10 +2210,6 @@ END behavioral;</string>
       <p2 x="2920" y="2140"/>
     </wire>
     <wire>
-      <p1 x="-380" y="1500"/>
-      <p2 x="2580" y="1500"/>
-    </wire>
-    <wire>
       <p1 x="1460" y="2780"/>
       <p2 x="2500" y="2780"/>
     </wire>
@@ -2062,7 +2218,7 @@ END behavioral;</string>
       <p2 x="500" y="2400"/>
     </wire>
     <wire>
-      <p1 x="1920" y="2400"/>
+      <p1 x="1900" y="2400"/>
       <p2 x="2280" y="2400"/>
     </wire>
     <wire>
@@ -2070,8 +2226,8 @@ END behavioral;</string>
       <p2 x="2420" y="2400"/>
     </wire>
     <wire>
-      <p1 x="1640" y="2400"/>
-      <p2 x="1680" y="2400"/>
+      <p1 x="1700" y="2400"/>
+      <p2 x="1740" y="2400"/>
     </wire>
     <wire>
       <p1 x="100" y="2400"/>
@@ -2094,6 +2250,10 @@ END behavioral;</string>
       <p2 x="-300" y="2400"/>
     </wire>
     <wire>
+      <p1 x="1400" y="2400"/>
+      <p2 x="1480" y="2400"/>
+    </wire>
+    <wire>
       <p1 x="600" y="2400"/>
       <p2 x="720" y="2400"/>
     </wire>
@@ -2110,12 +2270,16 @@ END behavioral;</string>
       <p2 x="1260" y="1760"/>
     </wire>
     <wire>
-      <p1 x="-360" y="2020"/>
-      <p2 x="920" y="2020"/>
+      <p1 x="1560" y="1760"/>
+      <p2 x="1660" y="1760"/>
     </wire>
     <wire>
       <p1 x="940" y="2020"/>
       <p2 x="3040" y="2020"/>
+    </wire>
+    <wire>
+      <p1 x="1220" y="2660"/>
+      <p2 x="1520" y="2660"/>
     </wire>
     <wire>
       <p1 x="1320" y="2280"/>
@@ -2131,7 +2295,7 @@ END behavioral;</string>
     </wire>
     <wire>
       <p1 x="2340" y="2280"/>
-      <p2 x="2500" y="2280"/>
+      <p2 x="2400" y="2280"/>
     </wire>
     <wire>
       <p1 x="780" y="2280"/>
@@ -2142,12 +2306,16 @@ END behavioral;</string>
       <p2 x="3080" y="2280"/>
     </wire>
     <wire>
-      <p1 x="1600" y="2280"/>
-      <p2 x="1680" y="2280"/>
+      <p1 x="1660" y="2280"/>
+      <p2 x="1740" y="2280"/>
     </wire>
     <wire>
       <p1 x="2920" y="2280"/>
       <p2 x="2940" y="2280"/>
+    </wire>
+    <wire>
+      <p1 x="2400" y="2280"/>
+      <p2 x="2500" y="2280"/>
     </wire>
     <wire>
       <p1 x="2500" y="2280"/>
@@ -2159,19 +2327,15 @@ END behavioral;</string>
     </wire>
     <wire>
       <p1 x="780" y="2540"/>
-      <p2 x="1640" y="2540"/>
+      <p2 x="1700" y="2540"/>
     </wire>
     <wire>
-      <p1 x="1640" y="2540"/>
+      <p1 x="1700" y="2540"/>
       <p2 x="3240" y="2540"/>
     </wire>
     <wire>
       <p1 x="-320" y="2160"/>
       <p2 x="40" y="2160"/>
-    </wire>
-    <wire>
-      <p1 x="2360" y="2160"/>
-      <p2 x="2480" y="2160"/>
     </wire>
     <wire>
       <p1 x="1420" y="2160"/>
@@ -2206,8 +2370,8 @@ END behavioral;</string>
       <p2 x="1460" y="2420"/>
     </wire>
     <wire>
-      <p1 x="1740" y="2420"/>
-      <p2 x="1760" y="2420"/>
+      <p1 x="1800" y="2420"/>
+      <p2 x="1900" y="2420"/>
     </wire>
     <wire>
       <p1 x="-240" y="2420"/>
@@ -2222,10 +2386,6 @@ END behavioral;</string>
       <p2 x="2280" y="2420"/>
     </wire>
     <wire>
-      <p1 x="2340" y="2420"/>
-      <p2 x="2460" y="2420"/>
-    </wire>
-    <wire>
       <p1 x="140" y="2420"/>
       <p2 x="240" y="2420"/>
     </wire>
@@ -2238,7 +2398,7 @@ END behavioral;</string>
       <p2 x="-80" y="2420"/>
     </wire>
     <wire>
-      <p1 x="-360" y="2420"/>
+      <p1 x="-340" y="2420"/>
       <p2 x="-300" y="2420"/>
     </wire>
     <wire>
@@ -2254,16 +2414,16 @@ END behavioral;</string>
       <p2 x="900" y="1780"/>
     </wire>
     <wire>
-      <p1 x="680" y="1780"/>
-      <p2 x="760" y="1780"/>
-    </wire>
-    <wire>
       <p1 x="960" y="1780"/>
       <p2 x="1240" y="1780"/>
     </wire>
     <wire>
-      <p1 x="760" y="1780"/>
+      <p1 x="680" y="1780"/>
       <p2 x="840" y="1780"/>
+    </wire>
+    <wire>
+      <p1 x="1580" y="1780"/>
+      <p2 x="1660" y="1780"/>
     </wire>
     <wire>
       <p1 x="780" y="2040"/>
@@ -2274,16 +2434,16 @@ END behavioral;</string>
       <p2 x="2160" y="2040"/>
     </wire>
     <wire>
-      <p1 x="1340" y="1660"/>
-      <p2 x="1660" y="1660"/>
-    </wire>
-    <wire>
       <p1 x="1720" y="1660"/>
       <p2 x="1780" y="1660"/>
     </wire>
     <wire>
-      <p1 x="940" y="2300"/>
-      <p2 x="1020" y="2300"/>
+      <p1 x="1340" y="1660"/>
+      <p2 x="1660" y="1660"/>
+    </wire>
+    <wire>
+      <p1 x="840" y="1660"/>
+      <p2 x="1220" y="1660"/>
     </wire>
     <wire>
       <p1 x="2720" y="2300"/>
@@ -2322,6 +2482,18 @@ END behavioral;</string>
       <p2 x="3020" y="2300"/>
     </wire>
     <wire>
+      <p1 x="1620" y="2300"/>
+      <p2 x="1880" y="2300"/>
+    </wire>
+    <wire>
+      <p1 x="1900" y="2300"/>
+      <p2 x="1980" y="2300"/>
+    </wire>
+    <wire>
+      <p1 x="1000" y="2300"/>
+      <p2 x="1020" y="2300"/>
+    </wire>
+    <wire>
       <p1 x="2520" y="2300"/>
       <p2 x="2540" y="2300"/>
     </wire>
@@ -2330,36 +2502,16 @@ END behavioral;</string>
       <p2 x="1280" y="2220"/>
     </wire>
     <wire>
-      <p1 x="1920" y="2340"/>
-      <p2 x="1920" y="2400"/>
+      <p1 x="1540" y="2380"/>
+      <p2 x="1540" y="2440"/>
     </wire>
     <wire>
       <p1 x="1540" y="2040"/>
       <p2 x="1540" y="2360"/>
     </wire>
     <wire>
-      <p1 x="900" y="2120"/>
-      <p2 x="900" y="2240"/>
-    </wire>
-    <wire>
-      <p1 x="900" y="2240"/>
-      <p2 x="900" y="2420"/>
-    </wire>
-    <wire>
-      <p1 x="2180" y="2060"/>
-      <p2 x="2180" y="2340"/>
-    </wire>
-    <wire>
       <p1 x="3080" y="2280"/>
       <p2 x="3080" y="2560"/>
-    </wire>
-    <wire>
-      <p1 x="2440" y="2140"/>
-      <p2 x="2440" y="2260"/>
-    </wire>
-    <wire>
-      <p1 x="2440" y="2260"/>
-      <p2 x="2440" y="2640"/>
     </wire>
     <wire>
       <p1 x="780" y="2040"/>
@@ -2374,20 +2526,8 @@ END behavioral;</string>
       <p2 x="2060" y="2380"/>
     </wire>
     <wire>
-      <p1 x="1420" y="1740"/>
-      <p2 x="1420" y="2140"/>
-    </wire>
-    <wire>
-      <p1 x="1420" y="2140"/>
-      <p2 x="1420" y="2160"/>
-    </wire>
-    <wire>
-      <p1 x="1420" y="2160"/>
-      <p2 x="1420" y="2220"/>
-    </wire>
-    <wire>
-      <p1 x="1420" y="2220"/>
-      <p2 x="1420" y="2820"/>
+      <p1 x="2320" y="1860"/>
+      <p2 x="2320" y="2200"/>
     </wire>
     <wire>
       <p1 x="1300" y="1740"/>
@@ -2402,24 +2542,16 @@ END behavioral;</string>
       <p2 x="20" y="2420"/>
     </wire>
     <wire>
-      <p1 x="2580" y="1500"/>
-      <p2 x="2580" y="2180"/>
+      <p1 x="1560" y="1760"/>
+      <p2 x="1560" y="1820"/>
     </wire>
     <wire>
-      <p1 x="920" y="2020"/>
-      <p2 x="920" y="2060"/>
+      <p1 x="1560" y="2260"/>
+      <p2 x="1560" y="2620"/>
     </wire>
     <wire>
-      <p1 x="2200" y="2080"/>
-      <p2 x="2200" y="2320"/>
-    </wire>
-    <wire>
-      <p1 x="1180" y="1840"/>
-      <p2 x="1180" y="2400"/>
-    </wire>
-    <wire>
-      <p1 x="2460" y="2200"/>
-      <p2 x="2460" y="2420"/>
+      <p1 x="1820" y="2240"/>
+      <p2 x="1820" y="2320"/>
     </wire>
     <wire>
       <p1 x="3100" y="2260"/>
@@ -2440,6 +2572,274 @@ END behavioral;</string>
     <wire>
       <p1 x="800" y="1820"/>
       <p2 x="800" y="1840"/>
+    </wire>
+    <wire>
+      <p1 x="1320" y="1720"/>
+      <p2 x="1320" y="2280"/>
+    </wire>
+    <wire>
+      <p1 x="40" y="2160"/>
+      <p2 x="40" y="2220"/>
+    </wire>
+    <wire>
+      <p1 x="40" y="2380"/>
+      <p2 x="40" y="2420"/>
+    </wire>
+    <wire>
+      <p1 x="2600" y="2260"/>
+      <p2 x="2600" y="2280"/>
+    </wire>
+    <wire>
+      <p1 x="2600" y="2360"/>
+      <p2 x="2600" y="2480"/>
+    </wire>
+    <wire>
+      <p1 x="2860" y="2220"/>
+      <p2 x="2860" y="2360"/>
+    </wire>
+    <wire>
+      <p1 x="1580" y="1780"/>
+      <p2 x="1580" y="1840"/>
+    </wire>
+    <wire>
+      <p1 x="1840" y="2240"/>
+      <p2 x="1840" y="2340"/>
+    </wire>
+    <wire>
+      <p1 x="820" y="1800"/>
+      <p2 x="820" y="1820"/>
+    </wire>
+    <wire>
+      <p1 x="2100" y="2320"/>
+      <p2 x="2100" y="2420"/>
+    </wire>
+    <wire>
+      <p1 x="2360" y="2380"/>
+      <p2 x="2360" y="2520"/>
+    </wire>
+    <wire>
+      <p1 x="1340" y="1660"/>
+      <p2 x="1340" y="1900"/>
+    </wire>
+    <wire>
+      <p1 x="2620" y="2380"/>
+      <p2 x="2620" y="2460"/>
+    </wire>
+    <wire>
+      <p1 x="-320" y="2160"/>
+      <p2 x="-320" y="2400"/>
+    </wire>
+    <wire>
+      <p1 x="320" y="2400"/>
+      <p2 x="320" y="2420"/>
+    </wire>
+    <wire>
+      <p1 x="2880" y="2240"/>
+      <p2 x="2880" y="2340"/>
+    </wire>
+    <wire>
+      <p1 x="580" y="2140"/>
+      <p2 x="580" y="2420"/>
+    </wire>
+    <wire>
+      <p1 x="1860" y="2160"/>
+      <p2 x="1860" y="2440"/>
+    </wire>
+    <wire>
+      <p1 x="840" y="1660"/>
+      <p2 x="840" y="1780"/>
+    </wire>
+    <wire>
+      <p1 x="840" y="1780"/>
+      <p2 x="840" y="1800"/>
+    </wire>
+    <wire>
+      <p1 x="2380" y="2240"/>
+      <p2 x="2380" y="2300"/>
+    </wire>
+    <wire>
+      <p1 x="2380" y="2320"/>
+      <p2 x="2380" y="2460"/>
+    </wire>
+    <wire>
+      <p1 x="2380" y="1820"/>
+      <p2 x="2380" y="2180"/>
+    </wire>
+    <wire>
+      <p1 x="1100" y="1540"/>
+      <p2 x="1100" y="2260"/>
+    </wire>
+    <wire>
+      <p1 x="1100" y="2260"/>
+      <p2 x="1100" y="2320"/>
+    </wire>
+    <wire>
+      <p1 x="-80" y="2200"/>
+      <p2 x="-80" y="2420"/>
+    </wire>
+    <wire>
+      <p1 x="-340" y="1460"/>
+      <p2 x="-340" y="2420"/>
+    </wire>
+    <wire>
+      <p1 x="2900" y="2260"/>
+      <p2 x="2900" y="2320"/>
+    </wire>
+    <wire>
+      <p1 x="1620" y="2300"/>
+      <p2 x="1620" y="2460"/>
+    </wire>
+    <wire>
+      <p1 x="1620" y="1800"/>
+      <p2 x="1620" y="1860"/>
+    </wire>
+    <wire>
+      <p1 x="600" y="1720"/>
+      <p2 x="600" y="1900"/>
+    </wire>
+    <wire>
+      <p1 x="600" y="1900"/>
+      <p2 x="600" y="2400"/>
+    </wire>
+    <wire>
+      <p1 x="1880" y="2260"/>
+      <p2 x="1880" y="2300"/>
+    </wire>
+    <wire>
+      <p1 x="1880" y="2200"/>
+      <p2 x="1880" y="2220"/>
+    </wire>
+    <wire>
+      <p1 x="860" y="1740"/>
+      <p2 x="860" y="1780"/>
+    </wire>
+    <wire>
+      <p1 x="2400" y="2300"/>
+      <p2 x="2400" y="2380"/>
+    </wire>
+    <wire>
+      <p1 x="2400" y="1840"/>
+      <p2 x="2400" y="2280"/>
+    </wire>
+    <wire>
+      <p1 x="1120" y="2200"/>
+      <p2 x="1120" y="2420"/>
+    </wire>
+    <wire>
+      <p1 x="1120" y="2480"/>
+      <p2 x="1120" y="2640"/>
+    </wire>
+    <wire>
+      <p1 x="100" y="2400"/>
+      <p2 x="100" y="2440"/>
+    </wire>
+    <wire>
+      <p1 x="2920" y="2380"/>
+      <p2 x="2920" y="2480"/>
+    </wire>
+    <wire>
+      <p1 x="2920" y="2140"/>
+      <p2 x="2920" y="2280"/>
+    </wire>
+    <wire>
+      <p1 x="1640" y="2240"/>
+      <p2 x="1640" y="2340"/>
+    </wire>
+    <wire>
+      <p1 x="1900" y="2300"/>
+      <p2 x="1900" y="2400"/>
+    </wire>
+    <wire>
+      <p1 x="1900" y="2400"/>
+      <p2 x="1900" y="2420"/>
+    </wire>
+    <wire>
+      <p1 x="880" y="1700"/>
+      <p2 x="880" y="1740"/>
+    </wire>
+    <wire>
+      <p1 x="880" y="1860"/>
+      <p2 x="880" y="1880"/>
+    </wire>
+    <wire>
+      <p1 x="2160" y="2040"/>
+      <p2 x="2160" y="2360"/>
+    </wire>
+    <wire>
+      <p1 x="1140" y="2220"/>
+      <p2 x="1140" y="2440"/>
+    </wire>
+    <wire>
+      <p1 x="2420" y="2320"/>
+      <p2 x="2420" y="2400"/>
+    </wire>
+    <wire>
+      <p1 x="2420" y="2200"/>
+      <p2 x="2420" y="2260"/>
+    </wire>
+    <wire>
+      <p1 x="-380" y="1560"/>
+      <p2 x="-380" y="2440"/>
+    </wire>
+    <wire>
+      <p1 x="1660" y="2280"/>
+      <p2 x="1660" y="2820"/>
+    </wire>
+    <wire>
+      <p1 x="380" y="2340"/>
+      <p2 x="380" y="2420"/>
+    </wire>
+    <wire>
+      <p1 x="900" y="2120"/>
+      <p2 x="900" y="2240"/>
+    </wire>
+    <wire>
+      <p1 x="900" y="2240"/>
+      <p2 x="900" y="2420"/>
+    </wire>
+    <wire>
+      <p1 x="2180" y="2060"/>
+      <p2 x="2180" y="2340"/>
+    </wire>
+    <wire>
+      <p1 x="2440" y="2140"/>
+      <p2 x="2440" y="2260"/>
+    </wire>
+    <wire>
+      <p1 x="2440" y="2260"/>
+      <p2 x="2440" y="2640"/>
+    </wire>
+    <wire>
+      <p1 x="1420" y="1740"/>
+      <p2 x="1420" y="2140"/>
+    </wire>
+    <wire>
+      <p1 x="1420" y="2140"/>
+      <p2 x="1420" y="2160"/>
+    </wire>
+    <wire>
+      <p1 x="1420" y="2160"/>
+      <p2 x="1420" y="2220"/>
+    </wire>
+    <wire>
+      <p1 x="1420" y="2220"/>
+      <p2 x="1420" y="2820"/>
+    </wire>
+    <wire>
+      <p1 x="1680" y="2260"/>
+      <p2 x="1680" y="2440"/>
+    </wire>
+    <wire>
+      <p1 x="1680" y="2440"/>
+      <p2 x="1680" y="2520"/>
+    </wire>
+    <wire>
+      <p1 x="2200" y="2080"/>
+      <p2 x="2200" y="2320"/>
+    </wire>
+    <wire>
+      <p1 x="1180" y="1840"/>
+      <p2 x="1180" y="2400"/>
     </wire>
     <wire>
       <p1 x="160" y="2440"/>
@@ -2466,24 +2866,12 @@ END behavioral;</string>
       <p2 x="1440" y="2900"/>
     </wire>
     <wire>
-      <p1 x="1320" y="1720"/>
-      <p2 x="1320" y="2280"/>
+      <p1 x="1700" y="2220"/>
+      <p2 x="1700" y="2400"/>
     </wire>
     <wire>
-      <p1 x="40" y="2160"/>
-      <p2 x="40" y="2220"/>
-    </wire>
-    <wire>
-      <p1 x="40" y="2380"/>
-      <p2 x="40" y="2420"/>
-    </wire>
-    <wire>
-      <p1 x="2600" y="2260"/>
-      <p2 x="2600" y="2280"/>
-    </wire>
-    <wire>
-      <p1 x="2600" y="2360"/>
-      <p2 x="2600" y="2480"/>
+      <p1 x="1700" y="2400"/>
+      <p2 x="1700" y="2540"/>
     </wire>
     <wire>
       <p1 x="680" y="2240"/>
@@ -2502,12 +2890,8 @@ END behavioral;</string>
       <p2 x="1960" y="2460"/>
     </wire>
     <wire>
-      <p1 x="2860" y="2220"/>
-      <p2 x="2860" y="2360"/>
-    </wire>
-    <wire>
-      <p1 x="940" y="2200"/>
-      <p2 x="940" y="2300"/>
+      <p1 x="1960" y="2240"/>
+      <p2 x="1960" y="2340"/>
     </wire>
     <wire>
       <p1 x="940" y="2000"/>
@@ -2522,12 +2906,8 @@ END behavioral;</string>
       <p2 x="1200" y="2380"/>
     </wire>
     <wire>
-      <p1 x="820" y="1800"/>
-      <p2 x="820" y="1820"/>
-    </wire>
-    <wire>
-      <p1 x="2100" y="2320"/>
-      <p2 x="2100" y="2420"/>
+      <p1 x="2480" y="2180"/>
+      <p2 x="2480" y="2460"/>
     </wire>
     <wire>
       <p1 x="1460" y="2200"/>
@@ -2538,24 +2918,12 @@ END behavioral;</string>
       <p2 x="1460" y="2860"/>
     </wire>
     <wire>
-      <p1 x="2360" y="2380"/>
-      <p2 x="2360" y="2520"/>
-    </wire>
-    <wire>
-      <p1 x="2360" y="2160"/>
-      <p2 x="2360" y="2360"/>
+      <p1 x="1720" y="2460"/>
+      <p2 x="1720" y="2840"/>
     </wire>
     <wire>
       <p1 x="440" y="2340"/>
       <p2 x="440" y="2460"/>
-    </wire>
-    <wire>
-      <p1 x="1340" y="1660"/>
-      <p2 x="1340" y="1900"/>
-    </wire>
-    <wire>
-      <p1 x="2620" y="2380"/>
-      <p2 x="2620" y="2460"/>
     </wire>
     <wire>
       <p1 x="700" y="1700"/>
@@ -2566,40 +2934,20 @@ END behavioral;</string>
       <p2 x="700" y="2340"/>
     </wire>
     <wire>
-      <p1 x="-320" y="2160"/>
-      <p2 x="-320" y="2400"/>
-    </wire>
-    <wire>
-      <p1 x="320" y="2400"/>
-      <p2 x="320" y="2420"/>
-    </wire>
-    <wire>
-      <p1 x="2880" y="2240"/>
-      <p2 x="2880" y="2340"/>
-    </wire>
-    <wire>
-      <p1 x="1600" y="2280"/>
-      <p2 x="1600" y="2820"/>
-    </wire>
-    <wire>
-      <p1 x="960" y="2220"/>
-      <p2 x="960" y="2340"/>
+      <p1 x="1980" y="2200"/>
+      <p2 x="1980" y="2300"/>
     </wire>
     <wire>
       <p1 x="2240" y="2120"/>
       <p2 x="2240" y="2280"/>
     </wire>
     <wire>
-      <p1 x="580" y="2140"/>
-      <p2 x="580" y="2420"/>
-    </wire>
-    <wire>
-      <p1 x="1860" y="2160"/>
-      <p2 x="1860" y="2440"/>
-    </wire>
-    <wire>
       <p1 x="1220" y="1800"/>
       <p2 x="1220" y="2360"/>
+    </wire>
+    <wire>
+      <p1 x="1220" y="1660"/>
+      <p2 x="1220" y="1680"/>
     </wire>
     <wire>
       <p1 x="2500" y="2280"/>
@@ -2610,18 +2958,6 @@ END behavioral;</string>
       <p2 x="-200" y="2420"/>
     </wire>
     <wire>
-      <p1 x="840" y="1680"/>
-      <p2 x="840" y="1780"/>
-    </wire>
-    <wire>
-      <p1 x="840" y="1780"/>
-      <p2 x="840" y="1800"/>
-    </wire>
-    <wire>
-      <p1 x="1480" y="2380"/>
-      <p2 x="1480" y="2440"/>
-    </wire>
-    <wire>
       <p1 x="1480" y="2100"/>
       <p2 x="1480" y="2300"/>
     </wire>
@@ -2630,20 +2966,8 @@ END behavioral;</string>
       <p2 x="1480" y="2880"/>
     </wire>
     <wire>
-      <p1 x="1100" y="1540"/>
-      <p2 x="1100" y="2260"/>
-    </wire>
-    <wire>
-      <p1 x="1100" y="2260"/>
-      <p2 x="1100" y="2320"/>
-    </wire>
-    <wire>
-      <p1 x="2380" y="2240"/>
-      <p2 x="2380" y="2300"/>
-    </wire>
-    <wire>
-      <p1 x="2380" y="2320"/>
-      <p2 x="2380" y="2460"/>
+      <p1 x="1480" y="2400"/>
+      <p2 x="1480" y="2460"/>
     </wire>
     <wire>
       <p1 x="1740" y="1700"/>
@@ -2658,28 +2982,12 @@ END behavioral;</string>
       <p2 x="3020" y="2300"/>
     </wire>
     <wire>
-      <p1 x="-80" y="2200"/>
-      <p2 x="-80" y="2420"/>
-    </wire>
-    <wire>
       <p1 x="720" y="2200"/>
       <p2 x="720" y="2400"/>
     </wire>
     <wire>
       <p1 x="720" y="1720"/>
       <p2 x="720" y="1840"/>
-    </wire>
-    <wire>
-      <p1 x="2900" y="2260"/>
-      <p2 x="2900" y="2320"/>
-    </wire>
-    <wire>
-      <p1 x="1620" y="2260"/>
-      <p2 x="1620" y="2440"/>
-    </wire>
-    <wire>
-      <p1 x="1620" y="2440"/>
-      <p2 x="1620" y="2520"/>
     </wire>
     <wire>
       <p1 x="2260" y="2140"/>
@@ -2694,12 +3002,8 @@ END behavioral;</string>
       <p2 x="2260" y="2580"/>
     </wire>
     <wire>
-      <p1 x="600" y="1720"/>
-      <p2 x="600" y="1900"/>
-    </wire>
-    <wire>
-      <p1 x="600" y="1900"/>
-      <p2 x="600" y="2400"/>
+      <p1 x="980" y="2220"/>
+      <p2 x="980" y="2340"/>
     </wire>
     <wire>
       <p1 x="1240" y="1780"/>
@@ -2722,44 +3026,20 @@ END behavioral;</string>
       <p2 x="-220" y="2640"/>
     </wire>
     <wire>
-      <p1 x="860" y="1740"/>
-      <p2 x="860" y="1780"/>
-    </wire>
-    <wire>
       <p1 x="220" y="2460"/>
       <p2 x="220" y="2520"/>
-    </wire>
-    <wire>
-      <p1 x="1500" y="1700"/>
-      <p2 x="1500" y="2080"/>
     </wire>
     <wire>
       <p1 x="1500" y="2640"/>
       <p2 x="1500" y="2840"/>
     </wire>
     <wire>
+      <p1 x="1500" y="1700"/>
+      <p2 x="1500" y="2080"/>
+    </wire>
+    <wire>
       <p1 x="1500" y="2080"/>
       <p2 x="1500" y="2320"/>
-    </wire>
-    <wire>
-      <p1 x="2400" y="2300"/>
-      <p2 x="2400" y="2380"/>
-    </wire>
-    <wire>
-      <p1 x="1120" y="2200"/>
-      <p2 x="1120" y="2420"/>
-    </wire>
-    <wire>
-      <p1 x="480" y="1560"/>
-      <p2 x="480" y="2440"/>
-    </wire>
-    <wire>
-      <p1 x="1760" y="2240"/>
-      <p2 x="1760" y="2320"/>
-    </wire>
-    <wire>
-      <p1 x="1760" y="2340"/>
-      <p2 x="1760" y="2420"/>
     </wire>
     <wire>
       <p1 x="3040" y="2020"/>
@@ -2770,64 +3050,36 @@ END behavioral;</string>
       <p2 x="3040" y="2760"/>
     </wire>
     <wire>
-      <p1 x="100" y="2400"/>
-      <p2 x="100" y="2440"/>
+      <p1 x="480" y="2440"/>
+      <p2 x="480" y="2640"/>
     </wire>
     <wire>
       <p1 x="740" y="2220"/>
       <p2 x="740" y="2560"/>
     </wire>
     <wire>
-      <p1 x="-360" y="2020"/>
-      <p2 x="-360" y="2420"/>
+      <p1 x="1000" y="1460"/>
+      <p2 x="1000" y="2060"/>
     </wire>
     <wire>
-      <p1 x="2920" y="2380"/>
-      <p2 x="2920" y="2480"/>
-    </wire>
-    <wire>
-      <p1 x="2920" y="2140"/>
-      <p2 x="2920" y="2280"/>
-    </wire>
-    <wire>
-      <p1 x="1640" y="2220"/>
-      <p2 x="1640" y="2400"/>
-    </wire>
-    <wire>
-      <p1 x="1640" y="2400"/>
-      <p2 x="1640" y="2540"/>
+      <p1 x="1000" y="2200"/>
+      <p2 x="1000" y="2300"/>
     </wire>
     <wire>
       <p1 x="1260" y="1760"/>
       <p2 x="1260" y="2320"/>
     </wire>
     <wire>
-      <p1 x="880" y="1700"/>
-      <p2 x="880" y="1740"/>
-    </wire>
-    <wire>
-      <p1 x="880" y="1860"/>
-      <p2 x="880" y="1880"/>
-    </wire>
-    <wire>
-      <p1 x="2160" y="2040"/>
-      <p2 x="2160" y="2360"/>
-    </wire>
-    <wire>
       <p1 x="1520" y="1720"/>
       <p2 x="1520" y="2060"/>
     </wire>
     <wire>
+      <p1 x="1520" y="2360"/>
+      <p2 x="1520" y="2660"/>
+    </wire>
+    <wire>
       <p1 x="1520" y="2060"/>
       <p2 x="1520" y="2340"/>
-    </wire>
-    <wire>
-      <p1 x="1140" y="2220"/>
-      <p2 x="1140" y="2440"/>
-    </wire>
-    <wire>
-      <p1 x="2420" y="2320"/>
-      <p2 x="2420" y="2400"/>
     </wire>
     <wire>
       <p1 x="1780" y="1520"/>
@@ -2842,24 +3094,12 @@ END behavioral;</string>
       <p2 x="3060" y="2360"/>
     </wire>
     <wire>
-      <p1 x="760" y="1580"/>
-      <p2 x="760" y="1780"/>
-    </wire>
-    <wire>
       <p1 x="760" y="2000"/>
       <p2 x="760" y="2260"/>
     </wire>
     <wire>
-      <p1 x="-380" y="1500"/>
-      <p2 x="-380" y="2440"/>
-    </wire>
-    <wire>
-      <p1 x="380" y="2340"/>
-      <p2 x="380" y="2420"/>
-    </wire>
-    <wire>
-      <p1 x="1660" y="2460"/>
-      <p2 x="1660" y="2840"/>
+      <p1 x="1020" y="1580"/>
+      <p2 x="1020" y="1800"/>
     </wire>
   </wires>
   <measurementOrdering/>
