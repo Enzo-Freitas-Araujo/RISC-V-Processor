@@ -21,6 +21,7 @@ ARCHITECTURE output_control_logic OF output_control IS
 	CONSTANT LW : STD_LOGIC_VECTOR(6 downto 0) := "0000011";
 	CONSTANT SW : STD_LOGIC_VECTOR(6 downto 0) := "0100011";
 	CONSTANT beq : STD_LOGIC_VECTOR(6 downto 0) := "1100011";
+	CONSTANT arit_im : STD_LOGIC_VECTOR(6 downto 0) := "0010011";
 	SIGNAL opcode : STD_LOGIC_VECTOR(6 downto 0);
 
 	BEGIN
@@ -39,6 +40,9 @@ ARCHITECTURE output_control_logic OF output_control IS
 
             		WHEN beq =>
                 		ALUSrc <= '0'; ALUOp <= "01"; MemRead <= '0'; MemWrite <= '0'; Branch <= '1'; RegWrite <= '0'; MemtoReg <= '0';
+
+			WHEN arit_im =>
+				ALUSrc <= '1'; ALUOp <= "10"; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '1'; MemtoReg <= '0';
 
             		WHEN OTHERS =>
                 		ALUSrc <= '0'; ALUOp <= "00"; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '0'; MemtoReg <= '0';

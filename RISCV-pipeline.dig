@@ -593,8 +593,8 @@ ARCHITECTURE ALU_logic OF ALU IS
 		and_temp &lt;= A AND B;
 		or_temp &lt;= A OR B;
 		xor_temp &lt;= A XOR B;
-		sll_temp &lt;= std_logic_vector(shift_left(unsigned(B), to_integer(unsigned(A))));
-		srl_temp &lt;= std_logic_vector(shift_right(unsigned(B), to_integer(unsigned(A))));
+		sll_temp &lt;= std_logic_vector(shift_left(unsigned(A), to_integer(unsigned(B))));
+		srl_temp &lt;= std_logic_vector(shift_right(unsigned(A), to_integer(unsigned(B))));
 
 ------------------------------------
 
@@ -1041,6 +1041,7 @@ ARCHITECTURE output_control_logic OF output_control IS
 	CONSTANT LW : STD_LOGIC_VECTOR(6 downto 0) := &quot;0000011&quot;;
 	CONSTANT SW : STD_LOGIC_VECTOR(6 downto 0) := &quot;0100011&quot;;
 	CONSTANT beq : STD_LOGIC_VECTOR(6 downto 0) := &quot;1100011&quot;;
+	CONSTANT arit_im : STD_LOGIC_VECTOR(6 downto 0) := &quot;0010011&quot;;
 	SIGNAL opcode : STD_LOGIC_VECTOR(6 downto 0);
 
 	BEGIN
@@ -1059,6 +1060,9 @@ ARCHITECTURE output_control_logic OF output_control IS
 
             		WHEN beq =&gt;
                 		ALUSrc &lt;= &apos;0&apos;; ALUOp &lt;= &quot;01&quot;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;1&apos;; RegWrite &lt;= &apos;0&apos;; MemtoReg &lt;= &apos;0&apos;;
+
+			WHEN arit_im =&gt;
+				ALUSrc &lt;= &apos;1&apos;; ALUOp &lt;= &quot;10&quot;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;1&apos;; MemtoReg &lt;= &apos;0&apos;;
 
             		WHEN OTHERS =&gt;
                 		ALUSrc &lt;= &apos;0&apos;; ALUOp &lt;= &quot;00&quot;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;0&apos;; MemtoReg &lt;= &apos;0&apos;;
@@ -1204,8 +1208,8 @@ BEGIN
 			ELSIF(ALUOp = &quot;01&quot; OR opcode = &quot;1100011&quot;) THEN
 				selector &lt;= &quot;001&quot;;
 			ELSE
-				IF(opcode = &quot;0110011&quot;) THEN
-					IF(funct7 = &quot;0000000&quot;) THEN
+				IF(opcode = &quot;0110011&quot; OR opcode = &quot;0010011&quot;) THEN
+					IF(funct7 = &quot;0000000&quot; OR opcode = &quot;0010011&quot;) THEN
 						IF(funct3 = &quot;000&quot;) THEN
 							selector &lt;= &quot;000&quot;;
 						ELSIF(funct3 = &quot;111&quot;) THEN

@@ -34,8 +34,8 @@ ARCHITECTURE ALU_logic OF ALU IS
 		and_temp <= A AND B;
 		or_temp <= A OR B;
 		xor_temp <= A XOR B;
-		sll_temp <= std_logic_vector(shift_left(unsigned(B), to_integer(unsigned(A))));
-		srl_temp <= std_logic_vector(shift_right(unsigned(B), to_integer(unsigned(A))));
+		sll_temp <= std_logic_vector(shift_left(unsigned(A), to_integer(unsigned(B))));
+		srl_temp <= std_logic_vector(shift_right(unsigned(A), to_integer(unsigned(B))));
 
 ------------------------------------
 

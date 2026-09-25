@@ -27,8 +27,8 @@ BEGIN
 			ELSIF(ALUOp = "01" OR opcode = "1100011") THEN
 				selector <= "001";
 			ELSE
-				IF(opcode = "0110011") THEN
-					IF(funct7 = "0000000") THEN
+				IF(opcode = "0110011" OR opcode = "0010011") THEN
+					IF(funct7 = "0000000" OR opcode = "0010011") THEN
 						IF(funct3 = "000") THEN
 							selector <= "000";
 						ELSIF(funct3 = "111") THEN
