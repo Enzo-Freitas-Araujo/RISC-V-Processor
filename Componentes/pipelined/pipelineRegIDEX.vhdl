@@ -15,12 +15,14 @@ ENTITY pipelineRegIDEX IS
 		Branch : IN STD_LOGIC;
 
 		ALUOp : IN STD_LOGIC_VECTOR (1 downto 0);
-		ALUSrc : IN STD_LOGIC;
+		ALUSrcB : IN STD_LOGIC;
 
 		Rg1 : IN STD_LOGIC_VECTOR(31 downto 0);
 		Rg2 : IN STD_LOGIC_VECTOR(31 downto 0);
 		CLK : IN STD_LOGIC;
 		Flush : IN STD_LOGIC;
+		PC : IN STD_LOGIC_VECTOR(31 downto 0);
+		ALUSrcA : IN STD_LOGIC_VECTOR(1 downto 0);
 		instructionOutput : OUT STD_LOGIC_VECTOR(31 downto 0);
 		ImmOut : OUT STD_LOGIC_VECTOR(31 downto 0);
 		eqOut: OUT STD_LOGIC;
@@ -33,10 +35,12 @@ ENTITY pipelineRegIDEX IS
 		BranchOut : OUT STD_LOGIC;
 
 		ALUOpOUT : OUT STD_LOGIC_VECTOR (1 downto 0);
-		ALUSrcOUT : OUT STD_LOGIC;
+		ALUSrcBOUT : OUT STD_LOGIC;
 
 		Rg1Out : OUT STD_LOGIC_VECTOR(31 downto 0);
-		Rg2Out : OUT STD_LOGIC_VECTOR(31 downto 0)
+		Rg2Out : OUT STD_LOGIC_VECTOR(31 downto 0);
+		PCOut : OUT STD_LOGIC_VECTOR(31 downto 0);
+		ALUSrcAOUT : OUT STD_LOGIC_VECTOR(1 downto 0)
 	);
 END pipelineRegIDEX;
 
@@ -55,11 +59,13 @@ ARCHITECTURE pipelineRegIDEX_logic OF pipelineRegIDEX IS
 					MemReadOut <= '0';
 					
 					AluOpOut <= (others => '0');
-					AluSrcOut <= '0';
+					AluSrcBOut <= '0';
+					AluSrcAOut <= "00";
 
 					ImmOut <= (others => '0');
 					Rg1Out <= (others => '0');
 					Rg2Out <= (others => '0');
+					PCOut <= (others => '0');
 					eqOut <= '0';
 
 				ELSIF RISING_EDGE(CLK) THEN
@@ -73,10 +79,12 @@ ARCHITECTURE pipelineRegIDEX_logic OF pipelineRegIDEX IS
 					MemReadOut <= MemRead;
 					
 					AluOpOut <= AluOp;
-					AluSrcOut <= AluSrc;
+					AluSrcBOut <= AluSrcB;
+					AluSrcAOut <= AluSrcA;
 
 					Rg1Out <= Rg1;
 					Rg2Out <= Rg2;
+					PCOut <= PC;
 					eqOut <= eq;
 					ImmOut <= Imm;
 				ELSE
@@ -89,10 +97,12 @@ ARCHITECTURE pipelineRegIDEX_logic OF pipelineRegIDEX IS
 					MemReadOut <= MemReadOut;
 					
 					AluOpOut <= AluOpOut;
-					AluSrcOut <= AluSrcOut;
+					AluSrcBOut <= AluSrcBOut;
+					AluSrcAOut <= AluSrcAOut;
 					ImmOut <= ImmOut;
 					Rg1Out <= Rg1Out;
 					Rg2Out <= Rg2Out;
+					PCOut <= PCOut;
 					eqOut <= eq;
 					ImmOut <= ImmOut;
 				END IF;

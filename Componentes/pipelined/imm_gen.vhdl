@@ -28,7 +28,7 @@ BEGIN
 				imm_out <= (31 downto 12 => instruction(31)) & instruction(7) & instruction(30 downto 25) & instruction(11 downto 8) & '0';
 				
 			-- Tipo-U
-			WHEN "0010111" =>
+			WHEN "0010111" | "0110111"  =>
 				imm_out <= instruction(31 downto 12) & x"000";
 			-- Padrão caso não utilize imediato
 			WHEN OTHERS =>

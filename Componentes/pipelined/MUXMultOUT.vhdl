@@ -7,11 +7,13 @@ ENTITY MUX_2inputs_multOUT IS
 		enter4 , enter5 : IN STD_LOGIC;
 		enter6 : IN STD_LOGIC_VECTOR (1 downto 0);
 		enter7  : IN STD_LOGIC;
+		enter8  : IN STD_LOGIC_VECTOR (1 downto 0);
 		selector : IN STD_LOGIC;
 		output1, output2, output3,
 		output4, output5 : OUT STD_LOGIC;
 		output6 : OUT STD_LOGIC_VECTOR (1 downto 0);
-		output7 : OUT STD_LOGIC
+		output7 : OUT STD_LOGIC;
+		output8 : OUT STD_LOGIC_VECTOR (1 downto 0)
 	);
 END MUX_2inputs_multOUT;
 
@@ -31,6 +33,8 @@ ARCHITECTURE MUX_logic OF MUX_2inputs_multOUT IS
 			enter6;
 		output7 <= '0' WHEN selector = '1' ELSE
 			enter7;
+		output8 <= "00" WHEN selector = '1' ELSE
+			enter8;
 
 	END MUX_logic;
 --------------------------------------------------------------------------------
