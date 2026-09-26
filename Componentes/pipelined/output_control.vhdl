@@ -26,6 +26,7 @@ ARCHITECTURE output_control_logic OF output_control IS
 	CONSTANT auipc : STD_LOGIC_VECTOR(6 downto 0) := "0010111";
 	CONSTANT lui : STD_LOGIC_VECTOR(6 downto 0) := "0110111";
 	CONSTANT jal : STD_LOGIC_VECTOR(6 downto 0) := "1101111";
+	CONSTANT jalr : STD_LOGIC_VECTOR(6 downto 0) := "1100111";
 	SIGNAL opcode : STD_LOGIC_VECTOR(6 downto 0);
 
 	BEGIN
@@ -51,7 +52,7 @@ ARCHITECTURE output_control_logic OF output_control IS
 				ALUSrcB <= "01"; ALUSrcA <= "01"; ALUOp <= "00"; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '1'; MemtoReg <= '0';
 			WHEN lui =>
 				ALUSrcB <= "01"; ALUSrcA <= "10"; ALUOp <= "00"; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '1'; MemtoReg <= '0';
-			WHEN jal =>
+			WHEN jal | jalr =>
 				ALUSrcB <= "10"; ALUSrcA <= "01"; ALUOp <= "00"; MemRead <= '0'; MemWrite <= '0'; Branch <= '1'; RegWrite <= '1'; MemtoReg <= '0';
             		WHEN OTHERS =>
                 		ALUSrcB <= "00"; ALUSrcA <= "00"; ALUOp <= "00"; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '0'; MemtoReg <= '0';

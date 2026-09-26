@@ -17,6 +17,6 @@ BEGIN
 	opcode <= instruction(6 downto 0);
 	funct3 <= instruction(14 downto 12);
 	result <= '1' WHEN (((opcode = "1100011") AND ((rg1 = rg2 AND funct3 = "000") OR (rg1 /= rg2 AND funct3 = "001"))) OR
-			(opcode = "1101111")) ELSE
+			(opcode = "1101111") OR (opcode = "1100111")) ELSE
 		'0';
 END behavioral;
