@@ -30,7 +30,14 @@ BEGIN
 			-- Tipo-U
 			WHEN "0010111" | "0110111"  =>
 				imm_out <= instruction(31 downto 12) & x"000";
-			-- Padrão caso não utilize imediato
+			-- Tipo-J
+			WHEN "1101111" =>
+    				imm_out <= (31 downto 21 => instruction(31)) &  -- 11 bits de extensão de sinal
+               			instruction(31)                  &  -- imm[20]       (1 bit)
+               			instruction(19 downto 12)        &  -- imm[19:12]    (8 bits)
+               			instruction(20)                  &  -- imm[11]       (1 bit)
+               			instruction(30 downto 21)        &  -- imm[10:1]     (10 bits)
+               		'0';
 			WHEN OTHERS =>
 				imm_out <= (others => '0');
 		END CASE;

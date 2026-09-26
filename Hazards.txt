@@ -1,0 +1,2 @@
+Dado "0" está sendo escrito nos registradores após o branch
+Quando os registradores não são executados explicitamente, o branch não funciona

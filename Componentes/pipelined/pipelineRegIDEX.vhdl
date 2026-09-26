@@ -15,7 +15,7 @@ ENTITY pipelineRegIDEX IS
 		Branch : IN STD_LOGIC;
 
 		ALUOp : IN STD_LOGIC_VECTOR (1 downto 0);
-		ALUSrcB : IN STD_LOGIC;
+		ALUSrcB : IN STD_LOGIC_VECTOR (1 downto 0);
 
 		Rg1 : IN STD_LOGIC_VECTOR(31 downto 0);
 		Rg2 : IN STD_LOGIC_VECTOR(31 downto 0);
@@ -35,7 +35,7 @@ ENTITY pipelineRegIDEX IS
 		BranchOut : OUT STD_LOGIC;
 
 		ALUOpOUT : OUT STD_LOGIC_VECTOR (1 downto 0);
-		ALUSrcBOUT : OUT STD_LOGIC;
+		ALUSrcBOUT : OUT STD_LOGIC_VECTOR(1 downto 0);
 
 		Rg1Out : OUT STD_LOGIC_VECTOR(31 downto 0);
 		Rg2Out : OUT STD_LOGIC_VECTOR(31 downto 0);
@@ -45,29 +45,33 @@ ENTITY pipelineRegIDEX IS
 END pipelineRegIDEX;
 
 ARCHITECTURE pipelineRegIDEX_logic OF pipelineRegIDEX IS
+	SIGNAL opcode : STD_LOGIC_VECTOR(6 downto 0);
 	BEGIN
-	
+		opcode <= instruction(6 downto 0);
 		PROCESS(CLK)
 			BEGIN
 				IF(Flush = '1') THEN
-					instructionOutput <= x"00000013";
-					RegWriteOut <= '0';
+					instructionOutput <= instructionOutput;
 					memToRegOut <= '0';
 
-					BranchOut <= '0';
+					BranchOut <= BranchOut;
 					MemWriteOut <= '0';
 					MemReadOut <= '0';
 					
-					AluOpOut <= (others => '0');
-					AluSrcBOut <= '0';
-					AluSrcAOut <= "00";
-
-					ImmOut <= (others => '0');
-					Rg1Out <= (others => '0');
-					Rg2Out <= (others => '0');
-					PCOut <= (others => '0');
+					AluOpOut <= AluOpOut;
+					AluSrcBOut <= AluSrcBOut;
+					AluSrcAOut <= AluSrcAOut;
+					ImmOut <= ImmOut;
+					Rg1Out <= Rg1Out;
+					Rg2Out <= Rg2Out;
+					PCOut <= PCOut;
 					eqOut <= '0';
-
+					ImmOut <= ImmOut;
+					IF(opcode = "1101111") THEN
+						RegWriteOut <= RegWrite;
+					ELSE
+						RegWriteOut <= '0';
+					END IF;
 				ELSIF RISING_EDGE(CLK) THEN
 					instructionOutput <= instruction;
 
@@ -103,7 +107,7 @@ ARCHITECTURE pipelineRegIDEX_logic OF pipelineRegIDEX IS
 					Rg1Out <= Rg1Out;
 					Rg2Out <= Rg2Out;
 					PCOut <= PCOut;
-					eqOut <= eq;
+					eqOut <= eqOut;
 					ImmOut <= ImmOut;
 				END IF;
 		END PROCESS;
