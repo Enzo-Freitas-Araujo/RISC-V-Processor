@@ -42,7 +42,7 @@
         </entry>
         <entry>
           <string>externalInputs</string>
-          <string>memData:32,PCWrite,CLK</string>
+          <string>memData:32,PCWrite,CLK,RESET</string>
         </entry>
         <entry>
           <string>Code</string>
@@ -55,6 +55,7 @@ ENTITY reg32 IS
 		memData : IN STD_LOGIC_VECTOR(31 downto 0);
 		PCWrite : IN STD_LOGIC;
 		CLK : IN STD_LOGIC;
+		RESET : IN STD_LOGIC;
 		memOutput : OUT STD_LOGIC_VECTOR(31 downto 0)
 	);
 END reg32;
@@ -62,9 +63,11 @@ END reg32;
 ARCHITECTURE reg32_logic OF reg32 IS
 	BEGIN
 	
-		PROCESS(CLK)
+		PROCESS(CLK, RESET)
 			BEGIN
-				IF (RISING_EDGE(CLK) AND (PCWrite = &apos;1&apos;)) THEN
+				IF(Reset = &apos;1&apos;) THEN
+					memOutput &lt;= x&quot;00000000&quot;;
+				ELSIF (RISING_EDGE(CLK) AND (PCWrite = &apos;1&apos;)) THEN
 					memOutput &lt;= memData;
 				ELSE
 					memOutput &lt;= memOutput;
@@ -93,7 +96,7 @@ ARCHITECTURE reg32_logic OF reg32 IS
         </entry>
         <entry>
           <string>externalInputs</string>
-          <string>instruction:32,PC:32,IFFlush,IFIDWrite,CLK</string>
+          <string>instruction:32,PC:32,IFFlush,IFIDWrite,CLK,RESET</string>
         </entry>
         <entry>
           <string>Code</string>
@@ -108,6 +111,7 @@ ENTITY pipelineReg IS
 		IFFlush : IN STD_LOGIC;
 		IFIDWrite : IN STD_LOGIC;
 		CLK : IN STD_LOGIC;
+		RESET : IN STD_LOGIC;
 		instructionOutput : OUT STD_LOGIC_VECTOR(31 downto 0);
 		PCOut : OUT STD_LOGIC_VECTOR(31 downto 0)
 	);
@@ -116,9 +120,12 @@ END pipelineReg;
 ARCHITECTURE pipelineReg_logic OF pipelineReg IS
 	BEGIN
 	
-		PROCESS(CLK)
+		PROCESS(CLK, RESET)
 			BEGIN
-				IF(IFFlush = &apos;1&apos;) THEN
+				IF(Reset = &apos;1&apos;) THEN
+					PCOut &lt;= x&quot;00000000&quot;;
+					instructionOutput &lt;= x&quot;00000000&quot;;
+				ELSIF(IFFlush = &apos;1&apos;) THEN
 						instructionOutput &lt;= &quot;00000000000000000000000000010011&quot;;
 						PCOut &lt;= PCOut;
 				ELSIF RISING_EDGE(CLK) THEN
@@ -213,7 +220,7 @@ END behavioral;</string>
           <string>imm_out:32</string>
         </entry>
       </elementAttributes>
-      <pos x="820" y="2420"/>
+      <pos x="760" y="2440"/>
     </visualElement>
     <visualElement>
       <elementName>External</elementName>
@@ -228,7 +235,7 @@ END behavioral;</string>
         </entry>
         <entry>
           <string>externalInputs</string>
-          <string>instruction:32,instruction2:32,CLK,reg_write,rgw_data:32</string>
+          <string>instruction:32,instruction2:32,CLK,reg_write,rgw_data:32,RESET</string>
         </entry>
         <entry>
           <string>Code</string>
@@ -243,6 +250,7 @@ ENTITY register_block IS
 		CLK          : IN  STD_LOGIC;
 		reg_write    : IN  STD_LOGIC;
 		rgw_data     : IN  STD_LOGIC_VECTOR(31 downto 0);
+		RESET : IN STD_LOGIC;
 		rg1_data     : OUT STD_LOGIC_VECTOR(31 downto 0);
 		rg2_data     : OUT STD_LOGIC_VECTOR(31 downto 0)
 	);
@@ -263,9 +271,11 @@ BEGIN
 	------------------------------------------------------------------
 	-- 1. ESCRITA SÍNCRONA (Acontece APENAS na borda de subida do CLK)
 	------------------------------------------------------------------
-	PROCESS(CLK)
+	PROCESS(CLK, RESET)
 	BEGIN
-		IF RISING_EDGE(CLK) THEN
+		IF(Reset = &apos;1&apos;) THEN
+			registers &lt;= (others =&gt; (others =&gt; &apos;0&apos;));
+		ELSIF RISING_EDGE(CLK) THEN
 			IF (reg_write = &apos;1&apos; AND rgw /= &quot;00000&quot;) THEN
 				registers(to_integer(unsigned(rgw))) &lt;= rgw_data;
 			END IF;
@@ -292,7 +302,7 @@ END register_logic;</string>
           <string>rg1_data:32,rg2_data:32</string>
         </entry>
       </elementAttributes>
-      <pos x="820" y="2200"/>
+      <pos x="760" y="2200"/>
     </visualElement>
     <visualElement>
       <elementName>External</elementName>
@@ -307,7 +317,7 @@ END register_logic;</string>
         </entry>
         <entry>
           <string>externalInputs</string>
-          <string>instruction:32,Imm:32,eq,RegWrite,MemToReg,memRead,memWrite,Branch,ALUOp:2,ALUSrcB:2,Rg1:32,Rg2:32,CLK,Flush,PC:32,ALUSrcA:2</string>
+          <string>instruction:32,Imm:32,eq,RegWrite,MemToReg,memRead,memWrite,Branch,ALUOp:2,ALUSrcB:2,Rg1:32,Rg2:32,CLK,Flush,PC:32,ALUSrcA:2,RESET</string>
         </entry>
         <entry>
           <string>Code</string>
@@ -336,6 +346,7 @@ ENTITY pipelineRegIDEX IS
 		Flush : IN STD_LOGIC;
 		PC : IN STD_LOGIC_VECTOR(31 downto 0);
 		ALUSrcA : IN STD_LOGIC_VECTOR(1 downto 0);
+		RESET : IN STD_LOGIC;
 		instructionOutput : OUT STD_LOGIC_VECTOR(31 downto 0);
 		ImmOut : OUT STD_LOGIC_VECTOR(31 downto 0);
 		eqOut: OUT STD_LOGIC;
@@ -361,30 +372,41 @@ ARCHITECTURE pipelineRegIDEX_logic OF pipelineRegIDEX IS
 	SIGNAL opcode : STD_LOGIC_VECTOR(6 downto 0);
 	BEGIN
 		opcode &lt;= instruction(6 downto 0);
-		PROCESS(CLK)
+		PROCESS(CLK, RESET)
 			BEGIN
-				IF(Flush = &apos;1&apos;) THEN
-					instructionOutput &lt;= instructionOutput;
-					memToRegOut &lt;= &apos;0&apos;;
+				IF((Flush = &apos;1&apos;) OR (RESET = &apos;1&apos;)) THEN
+					IF RESET = &apos;1&apos; THEN
+						instructionOutput &lt;= X&quot;00000000&quot;;
+						BranchOut &lt;= &apos;0&apos;;
+						AluOpOut &lt;= &quot;00&quot;;
+						AluSrcBOut &lt;= &quot;00&quot;;
+						AluSrcAOut &lt;= &quot;00&quot;;
+						ImmOut &lt;= X&quot;00000000&quot;;
+						Rg1Out &lt;= X&quot;00000000&quot;;
+						Rg2Out &lt;= X&quot;00000000&quot;;
+						PCOut &lt;= X&quot;00000000&quot;;
+					ELSE
+						instructionOutput &lt;= instructionOutput;
+						BranchOut &lt;= BranchOut;
+						AluOpOut &lt;= AluOpOut;
+						AluSrcBOut &lt;= AluSrcBOut;
+						AluSrcAOut &lt;= AluSrcAOut;
+						ImmOut &lt;= ImmOut;
+						Rg1Out &lt;= Rg1Out;
+						Rg2Out &lt;= Rg2Out;
+						PCOut &lt;= PCOut;
+						IF(opcode = &quot;1101111&quot;) THEN
+							RegWriteOut &lt;= RegWrite;
+						ELSE
+							RegWriteOut &lt;= &apos;0&apos;;
+						END IF;
+					END IF;
 
-					BranchOut &lt;= BranchOut;
+					memToRegOut &lt;= &apos;0&apos;;
 					MemWriteOut &lt;= &apos;0&apos;;
 					MemReadOut &lt;= &apos;0&apos;;
-					
-					AluOpOut &lt;= AluOpOut;
-					AluSrcBOut &lt;= AluSrcBOut;
-					AluSrcAOut &lt;= AluSrcAOut;
-					ImmOut &lt;= ImmOut;
-					Rg1Out &lt;= Rg1Out;
-					Rg2Out &lt;= Rg2Out;
-					PCOut &lt;= PCOut;
 					eqOut &lt;= &apos;0&apos;;
-					ImmOut &lt;= ImmOut;
-					IF(opcode = &quot;1101111&quot;) THEN
-						RegWriteOut &lt;= RegWrite;
-					ELSE
-						RegWriteOut &lt;= &apos;0&apos;;
-					END IF;
+
 				ELSIF RISING_EDGE(CLK) THEN
 					instructionOutput &lt;= instruction;
 
@@ -479,7 +501,7 @@ END behavioral;</string>
           <string>result</string>
         </entry>
       </elementAttributes>
-      <pos x="1020" y="2300"/>
+      <pos x="1040" y="2340"/>
     </visualElement>
     <visualElement>
       <elementName>External</elementName>
@@ -594,7 +616,6 @@ ENTITY ALU IS
 	PORT(
 		A, B : IN STD_LOGIC_VECTOR(31 downto 0);
 		selector : IN STD_LOGIC_VECTOR(2 downto 0);
-        	Zero    : OUT STD_LOGIC;
 		Result : OUT STD_LOGIC_VECTOR(31 downto 0)
 	);
 END ALU;
@@ -635,9 +656,6 @@ ARCHITECTURE ALU_logic OF ALU IS
 
     Res_temp &lt;= std_logic_vector(Sum_ext(31 downto 0));
 
-    Zero &lt;= &apos;1&apos; WHEN ((Res_temp = allZero) AND (selector(1) = &apos;0&apos;)) ELSE
-		&apos;0&apos;;
-
     Result &lt;= and_temp WHEN (selector = &quot;010&quot;) ELSE
 		or_temp WHEN (selector = &quot;011&quot;) ELSE
 		xor_temp WHEN (selector = &quot;100&quot;) ELSE
@@ -649,7 +667,7 @@ ARCHITECTURE ALU_logic OF ALU IS
         </entry>
         <entry>
           <string>externalOutputs</string>
-          <string>Zero,Result:32</string>
+          <string>Result:32</string>
         </entry>
       </elementAttributes>
       <pos x="2040" y="2320"/>
@@ -667,7 +685,7 @@ ARCHITECTURE ALU_logic OF ALU IS
         </entry>
         <entry>
           <string>externalInputs</string>
-          <string>instruction:32,RegWrite,MemToReg,memRead,memWrite,Branch,ALU:32,Op2:32,Zero,CLK</string>
+          <string>instruction:32,RegWrite,MemToReg,memRead,memWrite,ALU:32,Op2:32,CLK,RESET</string>
         </entry>
         <entry>
           <string>Code</string>
@@ -684,12 +702,11 @@ ENTITY pipelineRegEXMEM IS
 
 		memRead : IN STD_LOGIC;
 		memWrite : IN STD_LOGIC;
-		Branch : IN STD_LOGIC;
 
 		ALU : IN STD_LOGIC_VECTOR(31 downto 0);
 		Op2 : IN STD_LOGIC_VECTOR(31 downto 0);
-		Zero : IN STD_LOGIC;
 		CLK : IN STD_LOGIC;
+		RESET : IN STD_LOGIC;
 
 		instructionOutput : OUT STD_LOGIC_VECTOR(31 downto 0);
 		
@@ -698,44 +715,45 @@ ENTITY pipelineRegEXMEM IS
 		
 		memReadOut : OUT STD_LOGIC;
 		memWriteOut : OUT STD_LOGIC;
-		BranchOut : OUT STD_LOGIC;
 	
 		ALUOut : OUT STD_LOGIC_VECTOR(31 downto 0);
-		Op2Out : OUT STD_LOGIC_VECTOR(31 downto 0);
-		ZeroOUT : OUT STD_LOGIC
+		Op2Out : OUT STD_LOGIC_VECTOR(31 downto 0)
 	);
 END pipelineRegEXMEM;
 
 ARCHITECTURE pipelineRegMEMWB_logic OF pipelineRegEXMEM IS
 	BEGIN
 	
-		PROCESS(CLK)
+		PROCESS(CLK, RESET)
 			BEGIN
-				IF RISING_EDGE(CLK) THEN
+				IF RESET = &apos;1&apos; THEN
+					instructionOutput &lt;= X&quot;00000000&quot;;
+					RegWriteOut &lt;= &apos;0&apos;;
+					memToRegOut &lt;= &apos;0&apos;;
+					MemWriteOut &lt;= &apos;0&apos;;
+					MemReadOut &lt;= &apos;0&apos;;
+					ALUOut &lt;= X&quot;00000000&quot;;
+					Op2Out &lt;= X&quot;00000000&quot;;
+				ELSIF RISING_EDGE(CLK) THEN
 					instructionOutput &lt;= instruction;
 
 					RegWriteOut &lt;= RegWrite;
 					memToRegOut &lt;= memToReg;
 
-					BranchOut &lt;= Branch;
 					MemWriteOut &lt;= MemWrite;
 					MemReadOut &lt;= MemRead;
 					ALUOut &lt;= ALU;
 					Op2Out &lt;= Op2;
-
-					ZeroOUT &lt;= zero;
 					
 				ELSE
 					instructionOutput &lt;= instructionOutput;
 					RegWriteOut &lt;= RegWriteOut;
 					memToRegOut &lt;= memToRegOut;
 
-					BranchOut &lt;= BranchOut;
 					MemWriteOut &lt;= MemWriteOut;
 					MemReadOut &lt;= MemReadOut;
 					ALUOut &lt;= ALUOut;
 					Op2Out &lt;= Op2Out;
-					ZeroOUT &lt;= ZeroOUT;
 					
 				END IF;
 		END PROCESS;
@@ -744,7 +762,7 @@ ARCHITECTURE pipelineRegMEMWB_logic OF pipelineRegEXMEM IS
         </entry>
         <entry>
           <string>externalOutputs</string>
-          <string>instructionOutput:32,RegWriteOut,MemToRegOut,memReadOut,memWriteOut,BranchOut,ALUOut:32,Op2Out:32,ZeroOUT</string>
+          <string>instructionOutput:32,RegWriteOut,MemToRegOut,memReadOut,memWriteOut,ALUOut:32,Op2Out:32</string>
         </entry>
       </elementAttributes>
       <pos x="2280" y="2260"/>
@@ -788,7 +806,7 @@ ARCHITECTURE pipelineRegMEMWB_logic OF pipelineRegEXMEM IS
         </entry>
         <entry>
           <string>externalInputs</string>
-          <string>instruction:32,MemInstruction:32,RegWrite,MemToReg,ALU:32,CLK</string>
+          <string>instruction:32,MemInstruction:32,RegWrite,MemToReg,ALU:32,CLK,RESET</string>
         </entry>
         <entry>
           <string>Code</string>
@@ -806,6 +824,7 @@ ENTITY pipelineRegMEMWB IS
 
 		ALU : IN STD_LOGIC_VECTOR(31 downto 0);
 		CLK : IN STD_LOGIC;
+		RESET : IN STD_LOGIC;
 
 		instructionOutput : OUT STD_LOGIC_VECTOR(31 downto 0);
 		MemInstructionOut : OUT STD_LOGIC_VECTOR(31 downto 0);
@@ -820,9 +839,15 @@ END pipelineRegMEMWB;
 ARCHITECTURE pipelineRegMEMWB_logic OF pipelineRegMEMWB IS
 	BEGIN
 	
-		PROCESS(CLK)
+		PROCESS(CLK, RESET)
 			BEGIN
-				IF RISING_EDGE(CLK) THEN
+				IF RESET = &apos;1&apos; THEN
+					instructionOutput &lt;= X&quot;00000000&quot;;
+					MeminstructionOut &lt;= X&quot;00000000&quot;;
+					RegWriteOut &lt;= &apos;0&apos;;
+					memToRegOut &lt;= &apos;0&apos;;
+					ALUOut &lt;= X&quot;00000000&quot;;
+				ELSIF RISING_EDGE(CLK) THEN
 					instructionOutput &lt;= instruction;
 					MeminstructionOut &lt;= Meminstruction;
 
@@ -1083,7 +1108,7 @@ ARCHITECTURE output_control_logic OF output_control IS
 
 	BEGIN
 		opcode &lt;= instruction(6 downto 0);
-		PROCESS(Opcode)
+		PROCESS(opcode, instruction)
 		BEGIN
 		CASE Opcode IS
             		WHEN opAritmetica =&gt;
@@ -1099,7 +1124,11 @@ ARCHITECTURE output_control_logic OF output_control IS
                 		ALUSrcB &lt;= &quot;00&quot;; ALUSrcA &lt;= &quot;00&quot;; ALUOp &lt;= &quot;01&quot;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;1&apos;; RegWrite &lt;= &apos;0&apos;; MemtoReg &lt;= &apos;0&apos;;
 
 			WHEN arit_im =&gt;
-				ALUSrcB &lt;= &quot;01&quot;; ALUSrcA &lt;= &quot;00&quot;; ALUOp &lt;= &quot;10&quot;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;1&apos;; MemtoReg &lt;= &apos;0&apos;;
+				IF(instruction /= x&quot;00000013&quot;) THEN
+					ALUSrcB &lt;= &quot;01&quot;; ALUSrcA &lt;= &quot;00&quot;; ALUOp &lt;= &quot;10&quot;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;1&apos;; MemtoReg &lt;= &apos;0&apos;;
+				ELSE
+					ALUSrcB &lt;= &quot;00&quot;; ALUSrcA &lt;= &quot;00&quot;; ALUOp &lt;= &quot;00&quot;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;0&apos;; MemtoReg &lt;= &apos;0&apos;;
+				END IF;
 			WHEN auipc =&gt;
 				ALUSrcB &lt;= &quot;01&quot;; ALUSrcA &lt;= &quot;01&quot;; ALUOp &lt;= &quot;00&quot;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;1&apos;; MemtoReg &lt;= &apos;0&apos;;
 			WHEN lui =&gt;
@@ -1355,6 +1384,7 @@ BEGIN
 		ELSE
 			ForwardB &lt;= &quot;00&quot;;
 		END IF;
+		
 	END PROCESS;
 END behavioral;</string>
         </entry>
@@ -1667,18 +1697,27 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       </elementAttributes>
       <pos x="1840" y="2380"/>
     </visualElement>
+    <visualElement>
+      <elementName>In</elementName>
+      <elementAttributes/>
+      <pos x="-240" y="2960"/>
+    </visualElement>
   </visualElements>
   <wires>
     <wire>
-      <p1 x="740" y="2560"/>
-      <p2 x="1480" y="2560"/>
+      <p1 x="720" y="2560"/>
+      <p2 x="1700" y="2560"/>
     </wire>
     <wire>
-      <p1 x="1480" y="2560"/>
-      <p2 x="3080" y="2560"/>
+      <p1 x="440" y="2560"/>
+      <p2 x="620" y="2560"/>
     </wire>
     <wire>
-      <p1 x="700" y="1920"/>
+      <p1 x="1700" y="2560"/>
+      <p2 x="3240" y="2560"/>
+    </wire>
+    <wire>
+      <p1 x="660" y="1920"/>
       <p2 x="1780" y="1920"/>
     </wire>
     <wire>
@@ -1690,7 +1729,7 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1520" y="2820"/>
     </wire>
     <wire>
-      <p1 x="800" y="2180"/>
+      <p1 x="740" y="2180"/>
       <p2 x="1280" y="2180"/>
     </wire>
     <wire>
@@ -1700,6 +1739,58 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
     <wire>
       <p1 x="740" y="1540"/>
       <p2 x="1100" y="1540"/>
+    </wire>
+    <wire>
+      <p1 x="740" y="2440"/>
+      <p2 x="760" y="2440"/>
+    </wire>
+    <wire>
+      <p1 x="-100" y="2440"/>
+      <p2 x="-80" y="2440"/>
+    </wire>
+    <wire>
+      <p1 x="1140" y="2440"/>
+      <p2 x="1340" y="2440"/>
+    </wire>
+    <wire>
+      <p1 x="1680" y="2440"/>
+      <p2 x="1740" y="2440"/>
+    </wire>
+    <wire>
+      <p1 x="-380" y="2440"/>
+      <p2 x="-300" y="2440"/>
+    </wire>
+    <wire>
+      <p1 x="1860" y="2440"/>
+      <p2 x="1880" y="2440"/>
+    </wire>
+    <wire>
+      <p1 x="160" y="2440"/>
+      <p2 x="240" y="2440"/>
+    </wire>
+    <wire>
+      <p1 x="1400" y="2440"/>
+      <p2 x="1540" y="2440"/>
+    </wire>
+    <wire>
+      <p1 x="480" y="2440"/>
+      <p2 x="500" y="2440"/>
+    </wire>
+    <wire>
+      <p1 x="2280" y="2440"/>
+      <p2 x="2900" y="2440"/>
+    </wire>
+    <wire>
+      <p1 x="820" y="2440"/>
+      <p2 x="860" y="2440"/>
+    </wire>
+    <wire>
+      <p1 x="-80" y="2440"/>
+      <p2 x="20" y="2440"/>
+    </wire>
+    <wire>
+      <p1 x="20" y="2440"/>
+      <p2 x="40" y="2440"/>
     </wire>
     <wire>
       <p1 x="840" y="1800"/>
@@ -1722,42 +1813,6 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1220" y="1800"/>
     </wire>
     <wire>
-      <p1 x="1140" y="2440"/>
-      <p2 x="1340" y="2440"/>
-    </wire>
-    <wire>
-      <p1 x="1680" y="2440"/>
-      <p2 x="1740" y="2440"/>
-    </wire>
-    <wire>
-      <p1 x="-380" y="2440"/>
-      <p2 x="-300" y="2440"/>
-    </wire>
-    <wire>
-      <p1 x="1860" y="2440"/>
-      <p2 x="1880" y="2440"/>
-    </wire>
-    <wire>
-      <p1 x="-220" y="2440"/>
-      <p2 x="-160" y="2440"/>
-    </wire>
-    <wire>
-      <p1 x="160" y="2440"/>
-      <p2 x="240" y="2440"/>
-    </wire>
-    <wire>
-      <p1 x="2260" y="2440"/>
-      <p2 x="2280" y="2440"/>
-    </wire>
-    <wire>
-      <p1 x="1400" y="2440"/>
-      <p2 x="1540" y="2440"/>
-    </wire>
-    <wire>
-      <p1 x="480" y="2440"/>
-      <p2 x="500" y="2440"/>
-    </wire>
-    <wire>
       <p1 x="1520" y="2060"/>
       <p2 x="2180" y="2060"/>
     </wire>
@@ -1766,12 +1821,8 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="820" y="2060"/>
     </wire>
     <wire>
-      <p1 x="1080" y="2320"/>
-      <p2 x="1100" y="2320"/>
-    </wire>
-    <wire>
-      <p1 x="2420" y="2320"/>
-      <p2 x="2640" y="2320"/>
+      <p1 x="1060" y="2700"/>
+      <p2 x="2280" y="2700"/>
     </wire>
     <wire>
       <p1 x="3200" y="2320"/>
@@ -1806,10 +1857,6 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="3140" y="2320"/>
     </wire>
     <wire>
-      <p1 x="2100" y="2320"/>
-      <p2 x="2140" y="2320"/>
-    </wire>
-    <wire>
       <p1 x="1820" y="2320"/>
       <p2 x="1940" y="2320"/>
     </wire>
@@ -1818,8 +1865,8 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="2040" y="2320"/>
     </wire>
     <wire>
-      <p1 x="980" y="2320"/>
-      <p2 x="1020" y="2320"/>
+      <p1 x="2540" y="2320"/>
+      <p2 x="2640" y="2320"/>
     </wire>
     <wire>
       <p1 x="1720" y="1680"/>
@@ -1830,16 +1877,24 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1660" y="1680"/>
     </wire>
     <wire>
+      <p1 x="-240" y="2960"/>
+      <p2 x="-200" y="2960"/>
+    </wire>
+    <wire>
+      <p1 x="700" y="2580"/>
+      <p2 x="1480" y="2580"/>
+    </wire>
+    <wire>
       <p1 x="160" y="2580"/>
       <p2 x="460" y="2580"/>
     </wire>
     <wire>
-      <p1 x="1300" y="2580"/>
-      <p2 x="2260" y="2580"/>
+      <p1 x="1480" y="2580"/>
+      <p2 x="3080" y="2580"/>
     </wire>
     <wire>
       <p1 x="460" y="2580"/>
-      <p2 x="680" y="2580"/>
+      <p2 x="640" y="2580"/>
     </wire>
     <wire>
       <p1 x="880" y="1940"/>
@@ -1858,12 +1913,8 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1520" y="2840"/>
     </wire>
     <wire>
-      <p1 x="720" y="2200"/>
-      <p2 x="800" y="2200"/>
-    </wire>
-    <wire>
-      <p1 x="880" y="2200"/>
-      <p2 x="920" y="2200"/>
+      <p1 x="680" y="2200"/>
+      <p2 x="740" y="2200"/>
     </wire>
     <wire>
       <p1 x="1460" y="2200"/>
@@ -1882,28 +1933,24 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="2420" y="2200"/>
     </wire>
     <wire>
+      <p1 x="820" y="2200"/>
+      <p2 x="840" y="2200"/>
+    </wire>
+    <wire>
       <p1 x="920" y="2200"/>
-      <p2 x="1000" y="2200"/>
-    </wire>
-    <wire>
-      <p1 x="800" y="2200"/>
-      <p2 x="820" y="2200"/>
-    </wire>
-    <wire>
-      <p1 x="1000" y="2200"/>
       <p2 x="1120" y="2200"/>
     </wire>
     <wire>
-      <p1 x="820" y="1820"/>
-      <p2 x="900" y="1820"/>
+      <p1 x="740" y="2200"/>
+      <p2 x="760" y="2200"/>
     </wire>
     <wire>
-      <p1 x="680" y="1820"/>
-      <p2 x="800" y="1820"/>
+      <p1 x="840" y="2200"/>
+      <p2 x="920" y="2200"/>
     </wire>
     <wire>
-      <p1 x="960" y="1820"/>
-      <p2 x="1200" y="1820"/>
+      <p1 x="-220" y="2460"/>
+      <p2 x="-160" y="2460"/>
     </wire>
     <wire>
       <p1 x="220" y="2460"/>
@@ -1926,10 +1973,6 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="500" y="2460"/>
     </wire>
     <wire>
-      <p1 x="680" y="2460"/>
-      <p2 x="1300" y="2460"/>
-    </wire>
-    <wire>
       <p1 x="1480" y="2460"/>
       <p2 x="1620" y="2460"/>
     </wire>
@@ -1938,12 +1981,28 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1460" y="2460"/>
     </wire>
     <wire>
+      <p1 x="1080" y="2460"/>
+      <p2 x="1300" y="2460"/>
+    </wire>
+    <wire>
       <p1 x="1300" y="2460"/>
       <p2 x="1340" y="2460"/>
     </wire>
     <wire>
       <p1 x="2480" y="2460"/>
       <p2 x="2620" y="2460"/>
+    </wire>
+    <wire>
+      <p1 x="820" y="1820"/>
+      <p2 x="900" y="1820"/>
+    </wire>
+    <wire>
+      <p1 x="680" y="1820"/>
+      <p2 x="800" y="1820"/>
+    </wire>
+    <wire>
+      <p1 x="960" y="1820"/>
+      <p2 x="1200" y="1820"/>
     </wire>
     <wire>
       <p1 x="880" y="2080"/>
@@ -1991,7 +2050,7 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
     </wire>
     <wire>
       <p1 x="440" y="2340"/>
-      <p2 x="700" y="2340"/>
+      <p2 x="660" y="2340"/>
     </wire>
     <wire>
       <p1 x="1640" y="2340"/>
@@ -2006,8 +2065,8 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1940" y="2340"/>
     </wire>
     <wire>
-      <p1 x="800" y="2340"/>
-      <p2 x="1020" y="2340"/>
+      <p1 x="920" y="2340"/>
+      <p2 x="1040" y="2340"/>
     </wire>
     <wire>
       <p1 x="700" y="1700"/>
@@ -2034,8 +2093,8 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1520" y="2860"/>
     </wire>
     <wire>
-      <p1 x="880" y="2220"/>
-      <p2 x="980" y="2220"/>
+      <p1 x="820" y="2220"/>
+      <p2 x="840" y="2220"/>
     </wire>
     <wire>
       <p1 x="1400" y="2220"/>
@@ -2054,8 +2113,8 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1340" y="2220"/>
     </wire>
     <wire>
-      <p1 x="740" y="2220"/>
-      <p2 x="820" y="2220"/>
+      <p1 x="700" y="2220"/>
+      <p2 x="760" y="2220"/>
     </wire>
     <wire>
       <p1 x="2520" y="2220"/>
@@ -2066,7 +2125,7 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1900" y="2220"/>
     </wire>
     <wire>
-      <p1 x="980" y="2220"/>
+      <p1 x="840" y="2220"/>
       <p2 x="1140" y="2220"/>
     </wire>
     <wire>
@@ -2094,10 +2153,6 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1880" y="2480"/>
     </wire>
     <wire>
-      <p1 x="-220" y="2480"/>
-      <p2 x="160" y="2480"/>
-    </wire>
-    <wire>
       <p1 x="460" y="2480"/>
       <p2 x="500" y="2480"/>
     </wire>
@@ -2108,6 +2163,10 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
     <wire>
       <p1 x="1100" y="2480"/>
       <p2 x="1340" y="2480"/>
+    </wire>
+    <wire>
+      <p1 x="-200" y="2480"/>
+      <p2 x="-160" y="2480"/>
     </wire>
     <wire>
       <p1 x="2600" y="2480"/>
@@ -2124,6 +2183,10 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
     <wire>
       <p1 x="-340" y="1460"/>
       <p2 x="1000" y="1460"/>
+    </wire>
+    <wire>
+      <p1 x="-200" y="2740"/>
+      <p2 x="440" y="2740"/>
     </wire>
     <wire>
       <p1 x="2860" y="2360"/>
@@ -2154,12 +2217,20 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1880" y="2360"/>
     </wire>
     <wire>
-      <p1 x="2160" y="2360"/>
+      <p1 x="2340" y="2360"/>
+      <p2 x="2420" y="2360"/>
+    </wire>
+    <wire>
+      <p1 x="2120" y="2360"/>
       <p2 x="2280" y="2360"/>
     </wire>
     <wire>
-      <p1 x="1520" y="2360"/>
-      <p2 x="1580" y="2360"/>
+      <p1 x="1000" y="2360"/>
+      <p2 x="1040" y="2360"/>
+    </wire>
+    <wire>
+      <p1 x="2420" y="2360"/>
+      <p2 x="2520" y="2360"/>
     </wire>
     <wire>
       <p1 x="720" y="1720"/>
@@ -2178,7 +2249,7 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="620" y="1720"/>
     </wire>
     <wire>
-      <p1 x="1520" y="1720"/>
+      <p1 x="1440" y="1720"/>
       <p2 x="1660" y="1720"/>
     </wire>
     <wire>
@@ -2190,7 +2261,7 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1520" y="2880"/>
     </wire>
     <wire>
-      <p1 x="900" y="2240"/>
+      <p1 x="860" y="2240"/>
       <p2 x="1340" y="2240"/>
     </wire>
     <wire>
@@ -2206,8 +2277,8 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="2880" y="2240"/>
     </wire>
     <wire>
-      <p1 x="680" y="2240"/>
-      <p2 x="820" y="2240"/>
+      <p1 x="640" y="2240"/>
+      <p2 x="760" y="2240"/>
     </wire>
     <wire>
       <p1 x="1400" y="2240"/>
@@ -2220,6 +2291,26 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
     <wire>
       <p1 x="1960" y="2240"/>
       <p2 x="2020" y="2240"/>
+    </wire>
+    <wire>
+      <p1 x="640" y="2500"/>
+      <p2 x="1080" y="2500"/>
+    </wire>
+    <wire>
+      <p1 x="1460" y="2500"/>
+      <p2 x="1640" y="2500"/>
+    </wire>
+    <wire>
+      <p1 x="1400" y="2500"/>
+      <p2 x="1440" y="2500"/>
+    </wire>
+    <wire>
+      <p1 x="440" y="2500"/>
+      <p2 x="500" y="2500"/>
+    </wire>
+    <wire>
+      <p1 x="1140" y="2500"/>
+      <p2 x="1340" y="2500"/>
     </wire>
     <wire>
       <p1 x="1580" y="1860"/>
@@ -2238,18 +2329,6 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1160" y="1860"/>
     </wire>
     <wire>
-      <p1 x="580" y="2500"/>
-      <p2 x="1340" y="2500"/>
-    </wire>
-    <wire>
-      <p1 x="1460" y="2500"/>
-      <p2 x="1640" y="2500"/>
-    </wire>
-    <wire>
-      <p1 x="1400" y="2500"/>
-      <p2 x="1440" y="2500"/>
-    </wire>
-    <wire>
       <p1 x="1440" y="2120"/>
       <p2 x="2240" y="2120"/>
     </wire>
@@ -2262,8 +2341,12 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="3040" y="2760"/>
     </wire>
     <wire>
-      <p1 x="2340" y="2380"/>
-      <p2 x="2360" y="2380"/>
+      <p1 x="740" y="2380"/>
+      <p2 x="1040" y="2380"/>
+    </wire>
+    <wire>
+      <p1 x="2120" y="2380"/>
+      <p2 x="2280" y="2380"/>
     </wire>
     <wire>
       <p1 x="1200" y="2380"/>
@@ -2294,16 +2377,12 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1740" y="2380"/>
     </wire>
     <wire>
-      <p1 x="2120" y="2380"/>
-      <p2 x="2280" y="2380"/>
-    </wire>
-    <wire>
       <p1 x="1840" y="2380"/>
       <p2 x="1940" y="2380"/>
     </wire>
     <wire>
-      <p1 x="2360" y="2380"/>
-      <p2 x="2400" y="2380"/>
+      <p1 x="2340" y="2380"/>
+      <p2 x="2540" y="2380"/>
     </wire>
     <wire>
       <p1 x="880" y="1740"/>
@@ -2334,7 +2413,7 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1140" y="2640"/>
     </wire>
     <wire>
-      <p1 x="760" y="2000"/>
+      <p1 x="720" y="2000"/>
       <p2 x="940" y="2000"/>
     </wire>
     <wire>
@@ -2354,8 +2433,8 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1740" y="2260"/>
     </wire>
     <wire>
-      <p1 x="760" y="2260"/>
-      <p2 x="820" y="2260"/>
+      <p1 x="720" y="2260"/>
+      <p2 x="760" y="2260"/>
     </wire>
     <wire>
       <p1 x="2340" y="2260"/>
@@ -2382,6 +2461,22 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="2440" y="2260"/>
     </wire>
     <wire>
+      <p1 x="1160" y="2520"/>
+      <p2 x="1340" y="2520"/>
+    </wire>
+    <wire>
+      <p1 x="-220" y="2520"/>
+      <p2 x="160" y="2520"/>
+    </wire>
+    <wire>
+      <p1 x="1680" y="2520"/>
+      <p2 x="2420" y="2520"/>
+    </wire>
+    <wire>
+      <p1 x="580" y="2520"/>
+      <p2 x="1140" y="2520"/>
+    </wire>
+    <wire>
       <p1 x="1620" y="1880"/>
       <p2 x="2320" y="1880"/>
     </wire>
@@ -2390,16 +2485,8 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="900" y="1880"/>
     </wire>
     <wire>
-      <p1 x="1680" y="2520"/>
-      <p2 x="2360" y="2520"/>
-    </wire>
-    <wire>
-      <p1 x="1160" y="2520"/>
-      <p2 x="1340" y="2520"/>
-    </wire>
-    <wire>
       <p1 x="800" y="2140"/>
-      <p2 x="900" y="2140"/>
+      <p2 x="860" y="2140"/>
     </wire>
     <wire>
       <p1 x="1420" y="2140"/>
@@ -2418,12 +2505,12 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="2500" y="2780"/>
     </wire>
     <wire>
-      <p1 x="320" y="2400"/>
-      <p2 x="500" y="2400"/>
+      <p1 x="2260" y="2400"/>
+      <p2 x="2280" y="2400"/>
     </wire>
     <wire>
-      <p1 x="2340" y="2400"/>
-      <p2 x="2420" y="2400"/>
+      <p1 x="320" y="2400"/>
+      <p2 x="500" y="2400"/>
     </wire>
     <wire>
       <p1 x="1700" y="2400"/>
@@ -2454,20 +2541,24 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1480" y="2400"/>
     </wire>
     <wire>
-      <p1 x="2120" y="2400"/>
-      <p2 x="2280" y="2400"/>
-    </wire>
-    <wire>
       <p1 x="1820" y="2400"/>
       <p2 x="1940" y="2400"/>
     </wire>
     <wire>
-      <p1 x="600" y="2400"/>
-      <p2 x="720" y="2400"/>
+      <p1 x="2900" y="2400"/>
+      <p2 x="2940" y="2400"/>
     </wire>
     <wire>
-      <p1 x="720" y="2400"/>
-      <p2 x="800" y="2400"/>
+      <p1 x="840" y="2400"/>
+      <p2 x="1000" y="2400"/>
+    </wire>
+    <wire>
+      <p1 x="600" y="2400"/>
+      <p2 x="680" y="2400"/>
+    </wire>
+    <wire>
+      <p1 x="680" y="2400"/>
+      <p2 x="740" y="2400"/>
     </wire>
     <wire>
       <p1 x="680" y="1760"/>
@@ -2506,8 +2597,8 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="2400" y="2280"/>
     </wire>
     <wire>
-      <p1 x="780" y="2280"/>
-      <p2 x="820" y="2280"/>
+      <p1 x="720" y="2280"/>
+      <p2 x="760" y="2280"/>
     </wire>
     <wire>
       <p1 x="3000" y="2280"/>
@@ -2530,12 +2621,12 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="2600" y="2280"/>
     </wire>
     <wire>
-      <p1 x="780" y="2540"/>
-      <p2 x="1700" y="2540"/>
+      <p1 x="440" y="2540"/>
+      <p2 x="1060" y="2540"/>
     </wire>
     <wire>
-      <p1 x="1700" y="2540"/>
-      <p2 x="3240" y="2540"/>
+      <p1 x="1060" y="2540"/>
+      <p2 x="1340" y="2540"/>
     </wire>
     <wire>
       <p1 x="-320" y="2160"/>
@@ -2547,7 +2638,7 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
     </wire>
     <wire>
       <p1 x="740" y="2160"/>
-      <p2 x="920" y="2160"/>
+      <p2 x="840" y="2160"/>
     </wire>
     <wire>
       <p1 x="-200" y="1520"/>
@@ -2560,14 +2651,6 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
     <wire>
       <p1 x="300" y="2420"/>
       <p2 x="320" y="2420"/>
-    </wire>
-    <wire>
-      <p1 x="800" y="2420"/>
-      <p2 x="820" y="2420"/>
-    </wire>
-    <wire>
-      <p1 x="880" y="2420"/>
-      <p2 x="900" y="2420"/>
     </wire>
     <wire>
       <p1 x="1120" y="2420"/>
@@ -2590,10 +2673,6 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="580" y="2420"/>
     </wire>
     <wire>
-      <p1 x="2140" y="2420"/>
-      <p2 x="2280" y="2420"/>
-    </wire>
-    <wire>
       <p1 x="140" y="2420"/>
       <p2 x="240" y="2420"/>
     </wire>
@@ -2602,24 +2681,12 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="-160" y="2420"/>
     </wire>
     <wire>
-      <p1 x="-100" y="2420"/>
-      <p2 x="-80" y="2420"/>
-    </wire>
-    <wire>
       <p1 x="-340" y="2420"/>
       <p2 x="-300" y="2420"/>
     </wire>
     <wire>
-      <p1 x="-80" y="2420"/>
-      <p2 x="20" y="2420"/>
-    </wire>
-    <wire>
       <p1 x="1900" y="2420"/>
       <p2 x="2120" y="2420"/>
-    </wire>
-    <wire>
-      <p1 x="20" y="2420"/>
-      <p2 x="40" y="2420"/>
     </wire>
     <wire>
       <p1 x="860" y="1780"/>
@@ -2638,12 +2705,12 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1660" y="1780"/>
     </wire>
     <wire>
-      <p1 x="780" y="2040"/>
-      <p2 x="820" y="2040"/>
+      <p1 x="1300" y="2680"/>
+      <p2 x="2260" y="2680"/>
     </wire>
     <wire>
-      <p1 x="1580" y="2040"/>
-      <p2 x="2160" y="2040"/>
+      <p1 x="780" y="2040"/>
+      <p2 x="820" y="2040"/>
     </wire>
     <wire>
       <p1 x="1720" y="1660"/>
@@ -2682,10 +2749,6 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="2640" y="2300"/>
     </wire>
     <wire>
-      <p1 x="2400" y="2300"/>
-      <p2 x="2520" y="2300"/>
-    </wire>
-    <wire>
       <p1 x="3060" y="2300"/>
       <p2 x="3140" y="2300"/>
     </wire>
@@ -2702,8 +2765,8 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1980" y="2300"/>
     </wire>
     <wire>
-      <p1 x="1000" y="2300"/>
-      <p2 x="1020" y="2300"/>
+      <p1 x="620" y="2300"/>
+      <p2 x="760" y="2300"/>
     </wire>
     <wire>
       <p1 x="2520" y="2300"/>
@@ -2719,15 +2782,11 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
     </wire>
     <wire>
       <p1 x="3080" y="2280"/>
-      <p2 x="3080" y="2560"/>
+      <p2 x="3080" y="2580"/>
     </wire>
     <wire>
       <p1 x="780" y="2040"/>
       <p2 x="780" y="2140"/>
-    </wire>
-    <wire>
-      <p1 x="780" y="2280"/>
-      <p2 x="780" y="2540"/>
     </wire>
     <wire>
       <p1 x="780" y="1840"/>
@@ -2743,11 +2802,11 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
     </wire>
     <wire>
       <p1 x="1300" y="2460"/>
-      <p2 x="1300" y="2580"/>
+      <p2 x="1300" y="2680"/>
     </wire>
     <wire>
       <p1 x="20" y="2340"/>
-      <p2 x="20" y="2420"/>
+      <p2 x="20" y="2440"/>
     </wire>
     <wire>
       <p1 x="1560" y="1760"/>
@@ -2770,14 +2829,6 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="3100" y="2320"/>
     </wire>
     <wire>
-      <p1 x="800" y="2340"/>
-      <p2 x="800" y="2400"/>
-    </wire>
-    <wire>
-      <p1 x="800" y="2180"/>
-      <p2 x="800" y="2200"/>
-    </wire>
-    <wire>
       <p1 x="800" y="2060"/>
       <p2 x="800" y="2140"/>
     </wire>
@@ -2786,8 +2837,8 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="800" y="1840"/>
     </wire>
     <wire>
-      <p1 x="800" y="2400"/>
-      <p2 x="800" y="2420"/>
+      <p1 x="1060" y="2540"/>
+      <p2 x="1060" y="2700"/>
     </wire>
     <wire>
       <p1 x="1320" y="1720"/>
@@ -2799,7 +2850,7 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
     </wire>
     <wire>
       <p1 x="40" y="2380"/>
-      <p2 x="40" y="2420"/>
+      <p2 x="40" y="2440"/>
     </wire>
     <wire>
       <p1 x="2600" y="2260"/>
@@ -2818,10 +2869,6 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1580" y="1860"/>
     </wire>
     <wire>
-      <p1 x="1580" y="2040"/>
-      <p2 x="1580" y="2360"/>
-    </wire>
-    <wire>
       <p1 x="1840" y="2240"/>
       <p2 x="1840" y="2340"/>
     </wire>
@@ -2830,8 +2877,8 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="820" y="1820"/>
     </wire>
     <wire>
-      <p1 x="2360" y="2380"/>
-      <p2 x="2360" y="2520"/>
+      <p1 x="1080" y="2460"/>
+      <p2 x="1080" y="2500"/>
     </wire>
     <wire>
       <p1 x="1340" y="1660"/>
@@ -2859,27 +2906,47 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
     </wire>
     <wire>
       <p1 x="580" y="2420"/>
-      <p2 x="580" y="2500"/>
+      <p2 x="580" y="2520"/>
     </wire>
     <wire>
       <p1 x="1860" y="2160"/>
       <p2 x="1860" y="2440"/>
     </wire>
     <wire>
-      <p1 x="2120" y="2340"/>
-      <p2 x="2120" y="2380"/>
-    </wire>
-    <wire>
-      <p1 x="2120" y="2400"/>
-      <p2 x="2120" y="2420"/>
+      <p1 x="840" y="2160"/>
+      <p2 x="840" y="2200"/>
     </wire>
     <wire>
       <p1 x="840" y="1660"/>
       <p2 x="840" y="1780"/>
     </wire>
     <wire>
+      <p1 x="840" y="2220"/>
+      <p2 x="840" y="2400"/>
+    </wire>
+    <wire>
       <p1 x="840" y="1780"/>
       <p2 x="840" y="1800"/>
+    </wire>
+    <wire>
+      <p1 x="2120" y="2380"/>
+      <p2 x="2120" y="2420"/>
+    </wire>
+    <wire>
+      <p1 x="2120" y="2340"/>
+      <p2 x="2120" y="2360"/>
+    </wire>
+    <wire>
+      <p1 x="1100" y="1540"/>
+      <p2 x="1100" y="2260"/>
+    </wire>
+    <wire>
+      <p1 x="1100" y="2480"/>
+      <p2 x="1100" y="2640"/>
+    </wire>
+    <wire>
+      <p1 x="1100" y="2260"/>
+      <p2 x="1100" y="2360"/>
     </wire>
     <wire>
       <p1 x="2380" y="2240"/>
@@ -2894,20 +2961,8 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="2380" y="2180"/>
     </wire>
     <wire>
-      <p1 x="1100" y="1540"/>
-      <p2 x="1100" y="2260"/>
-    </wire>
-    <wire>
-      <p1 x="1100" y="2480"/>
-      <p2 x="1100" y="2640"/>
-    </wire>
-    <wire>
-      <p1 x="1100" y="2260"/>
-      <p2 x="1100" y="2320"/>
-    </wire>
-    <wire>
       <p1 x="-80" y="2200"/>
-      <p2 x="-80" y="2420"/>
+      <p2 x="-80" y="2440"/>
     </wire>
     <wire>
       <p1 x="-340" y="1460"/>
@@ -2916,6 +2971,10 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
     <wire>
       <p1 x="2900" y="2260"/>
       <p2 x="2900" y="2320"/>
+    </wire>
+    <wire>
+      <p1 x="2900" y="2400"/>
+      <p2 x="2900" y="2440"/>
     </wire>
     <wire>
       <p1 x="1620" y="2300"/>
@@ -2950,16 +3009,16 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1880" y="2360"/>
     </wire>
     <wire>
-      <p1 x="2140" y="2320"/>
-      <p2 x="2140" y="2420"/>
+      <p1 x="860" y="2140"/>
+      <p2 x="860" y="2240"/>
     </wire>
     <wire>
       <p1 x="860" y="1740"/>
       <p2 x="860" y="1780"/>
     </wire>
     <wire>
-      <p1 x="2400" y="2300"/>
-      <p2 x="2400" y="2380"/>
+      <p1 x="860" y="2240"/>
+      <p2 x="860" y="2440"/>
     </wire>
     <wire>
       <p1 x="2400" y="1860"/>
@@ -2994,6 +3053,10 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1900" y="2420"/>
     </wire>
     <wire>
+      <p1 x="620" y="2300"/>
+      <p2 x="620" y="2560"/>
+    </wire>
+    <wire>
       <p1 x="880" y="1700"/>
       <p2 x="880" y="1740"/>
     </wire>
@@ -3002,20 +3065,20 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="880" y="1940"/>
     </wire>
     <wire>
-      <p1 x="2160" y="2040"/>
-      <p2 x="2160" y="2360"/>
-    </wire>
-    <wire>
       <p1 x="1140" y="2220"/>
       <p2 x="1140" y="2440"/>
     </wire>
     <wire>
-      <p1 x="2420" y="2320"/>
-      <p2 x="2420" y="2400"/>
+      <p1 x="1140" y="2500"/>
+      <p2 x="1140" y="2520"/>
     </wire>
     <wire>
       <p1 x="2420" y="2200"/>
       <p2 x="2420" y="2260"/>
+    </wire>
+    <wire>
+      <p1 x="2420" y="2360"/>
+      <p2 x="2420" y="2520"/>
     </wire>
     <wire>
       <p1 x="1400" y="2480"/>
@@ -3034,12 +3097,12 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="380" y="2420"/>
     </wire>
     <wire>
-      <p1 x="900" y="2140"/>
-      <p2 x="900" y="2240"/>
+      <p1 x="640" y="2240"/>
+      <p2 x="640" y="2500"/>
     </wire>
     <wire>
-      <p1 x="900" y="2240"/>
-      <p2 x="900" y="2420"/>
+      <p1 x="640" y="2500"/>
+      <p2 x="640" y="2580"/>
     </wire>
     <wire>
       <p1 x="2180" y="2060"/>
@@ -3082,12 +3145,16 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1680" y="2520"/>
     </wire>
     <wire>
+      <p1 x="660" y="1920"/>
+      <p2 x="660" y="2340"/>
+    </wire>
+    <wire>
       <p1 x="2200" y="2080"/>
       <p2 x="2200" y="2320"/>
     </wire>
     <wire>
-      <p1 x="920" y="2160"/>
-      <p2 x="920" y="2200"/>
+      <p1 x="920" y="2200"/>
+      <p2 x="920" y="2340"/>
     </wire>
     <wire>
       <p1 x="1180" y="1840"/>
@@ -3095,10 +3162,10 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
     </wire>
     <wire>
       <p1 x="160" y="2440"/>
-      <p2 x="160" y="2480"/>
+      <p2 x="160" y="2520"/>
     </wire>
     <wire>
-      <p1 x="160" y="2480"/>
+      <p1 x="160" y="2520"/>
       <p2 x="160" y="2580"/>
     </wire>
     <wire>
@@ -3106,8 +3173,8 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="2720" y="2340"/>
     </wire>
     <wire>
-      <p1 x="1440" y="2120"/>
-      <p2 x="1440" y="2280"/>
+      <p1 x="1440" y="1720"/>
+      <p2 x="1440" y="2120"/>
     </wire>
     <wire>
       <p1 x="1440" y="2380"/>
@@ -3122,24 +3189,24 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="1440" y="2600"/>
     </wire>
     <wire>
+      <p1 x="1440" y="2120"/>
+      <p2 x="1440" y="2280"/>
+    </wire>
+    <wire>
       <p1 x="1700" y="2220"/>
       <p2 x="1700" y="2400"/>
     </wire>
     <wire>
       <p1 x="1700" y="2400"/>
-      <p2 x="1700" y="2540"/>
-    </wire>
-    <wire>
-      <p1 x="680" y="2240"/>
-      <p2 x="680" y="2460"/>
-    </wire>
-    <wire>
-      <p1 x="680" y="2460"/>
-      <p2 x="680" y="2580"/>
+      <p2 x="1700" y="2560"/>
     </wire>
     <wire>
       <p1 x="3240" y="2320"/>
-      <p2 x="3240" y="2540"/>
+      <p2 x="3240" y="2560"/>
+    </wire>
+    <wire>
+      <p1 x="680" y="2200"/>
+      <p2 x="680" y="2400"/>
     </wire>
     <wire>
       <p1 x="940" y="2000"/>
@@ -3178,6 +3245,18 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="440" y="2460"/>
     </wire>
     <wire>
+      <p1 x="440" y="2500"/>
+      <p2 x="440" y="2540"/>
+    </wire>
+    <wire>
+      <p1 x="440" y="2540"/>
+      <p2 x="440" y="2560"/>
+    </wire>
+    <wire>
+      <p1 x="440" y="2560"/>
+      <p2 x="440" y="2740"/>
+    </wire>
+    <wire>
       <p1 x="1980" y="2200"/>
       <p2 x="1980" y="2300"/>
     </wire>
@@ -3186,8 +3265,8 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="700" y="1720"/>
     </wire>
     <wire>
-      <p1 x="700" y="1920"/>
-      <p2 x="700" y="2340"/>
+      <p1 x="700" y="2220"/>
+      <p2 x="700" y="2580"/>
     </wire>
     <wire>
       <p1 x="2240" y="2120"/>
@@ -3210,11 +3289,19 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="-200" y="2420"/>
     </wire>
     <wire>
+      <p1 x="-200" y="2480"/>
+      <p2 x="-200" y="2740"/>
+    </wire>
+    <wire>
+      <p1 x="-200" y="2740"/>
+      <p2 x="-200" y="2960"/>
+    </wire>
+    <wire>
       <p1 x="1480" y="2100"/>
       <p2 x="1480" y="2300"/>
     </wire>
     <wire>
-      <p1 x="1480" y="2560"/>
+      <p1 x="1480" y="2580"/>
       <p2 x="1480" y="2880"/>
     </wire>
     <wire>
@@ -3234,8 +3321,12 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="3020" y="2300"/>
     </wire>
     <wire>
-      <p1 x="720" y="2200"/>
-      <p2 x="720" y="2400"/>
+      <p1 x="720" y="2280"/>
+      <p2 x="720" y="2560"/>
+    </wire>
+    <wire>
+      <p1 x="720" y="2000"/>
+      <p2 x="720" y="2260"/>
     </wire>
     <wire>
       <p1 x="720" y="1720"/>
@@ -3250,16 +3341,12 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="2260" y="2260"/>
     </wire>
     <wire>
-      <p1 x="2260" y="2440"/>
+      <p1 x="2260" y="2400"/>
       <p2 x="2260" y="2480"/>
     </wire>
     <wire>
       <p1 x="2260" y="2480"/>
-      <p2 x="2260" y="2580"/>
-    </wire>
-    <wire>
-      <p1 x="980" y="2220"/>
-      <p2 x="980" y="2320"/>
+      <p2 x="2260" y="2680"/>
     </wire>
     <wire>
       <p1 x="1240" y="1780"/>
@@ -3270,15 +3357,19 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="2520" y="2300"/>
     </wire>
     <wire>
+      <p1 x="2520" y="2300"/>
+      <p2 x="2520" y="2360"/>
+    </wire>
+    <wire>
       <p1 x="-220" y="2400"/>
       <p2 x="-220" y="2420"/>
     </wire>
     <wire>
-      <p1 x="-220" y="2440"/>
-      <p2 x="-220" y="2480"/>
+      <p1 x="-220" y="2460"/>
+      <p2 x="-220" y="2520"/>
     </wire>
     <wire>
-      <p1 x="-220" y="2480"/>
+      <p1 x="-220" y="2520"/>
       <p2 x="-220" y="2640"/>
     </wire>
     <wire>
@@ -3310,6 +3401,22 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="480" y="2640"/>
     </wire>
     <wire>
+      <p1 x="740" y="2180"/>
+      <p2 x="740" y="2200"/>
+    </wire>
+    <wire>
+      <p1 x="740" y="2100"/>
+      <p2 x="740" y="2160"/>
+    </wire>
+    <wire>
+      <p1 x="740" y="2380"/>
+      <p2 x="740" y="2400"/>
+    </wire>
+    <wire>
+      <p1 x="740" y="2400"/>
+      <p2 x="740" y="2440"/>
+    </wire>
+    <wire>
       <p1 x="2020" y="2240"/>
       <p2 x="2020" y="2340"/>
     </wire>
@@ -3318,28 +3425,28 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
       <p2 x="2020" y="2460"/>
     </wire>
     <wire>
-      <p1 x="740" y="2220"/>
-      <p2 x="740" y="2560"/>
-    </wire>
-    <wire>
-      <p1 x="740" y="2100"/>
-      <p2 x="740" y="2160"/>
-    </wire>
-    <wire>
       <p1 x="1000" y="1460"/>
       <p2 x="1000" y="2080"/>
     </wire>
     <wire>
-      <p1 x="1000" y="2200"/>
-      <p2 x="1000" y="2300"/>
+      <p1 x="1000" y="2360"/>
+      <p2 x="1000" y="2400"/>
+    </wire>
+    <wire>
+      <p1 x="2280" y="2420"/>
+      <p2 x="2280" y="2440"/>
+    </wire>
+    <wire>
+      <p1 x="2280" y="2440"/>
+      <p2 x="2280" y="2700"/>
     </wire>
     <wire>
       <p1 x="1260" y="1760"/>
       <p2 x="1260" y="2320"/>
     </wire>
     <wire>
-      <p1 x="1520" y="1720"/>
-      <p2 x="1520" y="2060"/>
+      <p1 x="2540" y="2320"/>
+      <p2 x="2540" y="2380"/>
     </wire>
     <wire>
       <p1 x="1520" y="2360"/>
@@ -3360,10 +3467,6 @@ ARCHITECTURE MUX_logic OF MUX_2inputs IS
     <wire>
       <p1 x="3060" y="2300"/>
       <p2 x="3060" y="2360"/>
-    </wire>
-    <wire>
-      <p1 x="760" y="2000"/>
-      <p2 x="760" y="2260"/>
     </wire>
     <wire>
       <p1 x="1020" y="1580"/>

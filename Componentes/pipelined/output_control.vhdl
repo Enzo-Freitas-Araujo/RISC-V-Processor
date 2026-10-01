@@ -31,7 +31,7 @@ ARCHITECTURE output_control_logic OF output_control IS
 
 	BEGIN
 		opcode <= instruction(6 downto 0);
-		PROCESS(Opcode)
+		PROCESS(opcode, instruction)
 		BEGIN
 		CASE Opcode IS
             		WHEN opAritmetica =>
@@ -47,7 +47,11 @@ ARCHITECTURE output_control_logic OF output_control IS
                 		ALUSrcB <= "00"; ALUSrcA <= "00"; ALUOp <= "01"; MemRead <= '0'; MemWrite <= '0'; Branch <= '1'; RegWrite <= '0'; MemtoReg <= '0';
 
 			WHEN arit_im =>
-				ALUSrcB <= "01"; ALUSrcA <= "00"; ALUOp <= "10"; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '1'; MemtoReg <= '0';
+				IF(instruction /= x"00000013") THEN
+					ALUSrcB <= "01"; ALUSrcA <= "00"; ALUOp <= "10"; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '1'; MemtoReg <= '0';
+				ELSE
+					ALUSrcB <= "00"; ALUSrcA <= "00"; ALUOp <= "00"; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '0'; MemtoReg <= '0';
+				END IF;
 			WHEN auipc =>
 				ALUSrcB <= "01"; ALUSrcA <= "01"; ALUOp <= "00"; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '1'; MemtoReg <= '0';
 			WHEN lui =>

@@ -12,6 +12,7 @@ ENTITY pipelineRegMEMWB IS
 
 		ALU : IN STD_LOGIC_VECTOR(31 downto 0);
 		CLK : IN STD_LOGIC;
+		RESET : IN STD_LOGIC;
 
 		instructionOutput : OUT STD_LOGIC_VECTOR(31 downto 0);
 		MemInstructionOut : OUT STD_LOGIC_VECTOR(31 downto 0);
@@ -26,9 +27,15 @@ END pipelineRegMEMWB;
 ARCHITECTURE pipelineRegMEMWB_logic OF pipelineRegMEMWB IS
 	BEGIN
 	
-		PROCESS(CLK)
+		PROCESS(CLK, RESET)
 			BEGIN
-				IF RISING_EDGE(CLK) THEN
+				IF RESET = '1' THEN
+					instructionOutput <= X"00000000";
+					MeminstructionOut <= X"00000000";
+					RegWriteOut <= '0';
+					memToRegOut <= '0';
+					ALUOut <= X"00000000";
+				ELSIF RISING_EDGE(CLK) THEN
 					instructionOutput <= instruction;
 					MeminstructionOut <= Meminstruction;
 

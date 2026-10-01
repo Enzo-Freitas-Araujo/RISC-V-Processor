@@ -27,13 +27,15 @@ ARCHITECTURE behavioral OF HazardDetectionUnit IS
 	SIGNAL EX_MEM_RegisterRd : STD_LOGIC_VECTOR(4 downto 0);
 	SIGNAL IF_ID_Rs1 : STD_LOGIC_VECTOR(4 downto 0);
 	SIGNAL IF_ID_Rs2 : STD_LOGIC_VECTOR(4 downto 0);
+	SIGNAL IF_ID_opcode : STD_LOGIC_VECTOR(6 downto 0);
 BEGIN
 	ID_EX_RegisterRd <= ID_EX_Instruction(11 downto 7);
 	EX_MEM_RegisterRd <= EX_MEM_Instruction(11 downto 7);
 	IF_ID_Rs1 <= IF_ID_Instruction(19 downto 15);
 	IF_ID_Rs2 <= IF_ID_Instruction(24 downto 20);
+	IF_ID_opcode <= IF_ID_Instruction(6 downto 0);
 	
-	PROCESS(IF_ID_Rs1, IF_ID_Rs2, Branch_ID, 
+	PROCESS(IF_ID_Rs1, IF_ID_Rs2, Branch_ID,
 	        ID_EX_MemRead, ID_EX_RegWrite, ID_EX_RegisterRd, EX_MEM_RegWrite, EX_MEM_RegisterRd)
 		
 		VARIABLE stall_load_use : BOOLEAN;
@@ -52,7 +54,11 @@ BEGIN
 			((EX_MEM_RegWrite = '1') AND (EX_MEM_RegisterRd /= "00000") AND 
 			 ((EX_MEM_RegisterRd = IF_ID_Rs1) OR (EX_MEM_RegisterRd = IF_ID_Rs2))));
 
-		IF stall_load_use OR stall_branch THEN
+		IF IF_ID_opcode = "1101111" THEN
+			PCWrite     <= '1';
+			IF_ID_Write <= '0';
+			ControlMux  <= '0'; 
+		ELSIF stall_load_use OR stall_branch THEN
 			PCWrite     <= '0'; -- Congela o Program Counter (PC)
 			IF_ID_Write <= '0'; -- Congela o Registrador IF/ID
 			ControlMux  <= '1'; -- Injeta Bolha/NOP no registrador ID/EX

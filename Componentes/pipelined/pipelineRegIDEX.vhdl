@@ -23,6 +23,7 @@ ENTITY pipelineRegIDEX IS
 		Flush : IN STD_LOGIC;
 		PC : IN STD_LOGIC_VECTOR(31 downto 0);
 		ALUSrcA : IN STD_LOGIC_VECTOR(1 downto 0);
+		RESET : IN STD_LOGIC;
 		instructionOutput : OUT STD_LOGIC_VECTOR(31 downto 0);
 		ImmOut : OUT STD_LOGIC_VECTOR(31 downto 0);
 		eqOut: OUT STD_LOGIC;
@@ -48,30 +49,41 @@ ARCHITECTURE pipelineRegIDEX_logic OF pipelineRegIDEX IS
 	SIGNAL opcode : STD_LOGIC_VECTOR(6 downto 0);
 	BEGIN
 		opcode <= instruction(6 downto 0);
-		PROCESS(CLK)
+		PROCESS(CLK, RESET)
 			BEGIN
-				IF(Flush = '1') THEN
-					instructionOutput <= instructionOutput;
-					memToRegOut <= '0';
+				IF((Flush = '1') OR (RESET = '1')) THEN
+					IF RESET = '1' THEN
+						instructionOutput <= X"00000000";
+						BranchOut <= '0';
+						AluOpOut <= "00";
+						AluSrcBOut <= "00";
+						AluSrcAOut <= "00";
+						ImmOut <= X"00000000";
+						Rg1Out <= X"00000000";
+						Rg2Out <= X"00000000";
+						PCOut <= X"00000000";
+					ELSE
+						instructionOutput <= instructionOutput;
+						BranchOut <= BranchOut;
+						AluOpOut <= AluOpOut;
+						AluSrcBOut <= AluSrcBOut;
+						AluSrcAOut <= AluSrcAOut;
+						ImmOut <= ImmOut;
+						Rg1Out <= Rg1Out;
+						Rg2Out <= Rg2Out;
+						PCOut <= PCOut;
+						IF(opcode = "1101111") THEN
+							RegWriteOut <= RegWrite;
+						ELSE
+							RegWriteOut <= '0';
+						END IF;
+					END IF;
 
-					BranchOut <= BranchOut;
+					memToRegOut <= '0';
 					MemWriteOut <= '0';
 					MemReadOut <= '0';
-					
-					AluOpOut <= AluOpOut;
-					AluSrcBOut <= AluSrcBOut;
-					AluSrcAOut <= AluSrcAOut;
-					ImmOut <= ImmOut;
-					Rg1Out <= Rg1Out;
-					Rg2Out <= Rg2Out;
-					PCOut <= PCOut;
 					eqOut <= '0';
-					ImmOut <= ImmOut;
-					IF(opcode = "1101111") THEN
-						RegWriteOut <= RegWrite;
-					ELSE
-						RegWriteOut <= '0';
-					END IF;
+
 				ELSIF RISING_EDGE(CLK) THEN
 					instructionOutput <= instruction;
 

@@ -6,7 +6,6 @@ ENTITY ALU IS
 	PORT(
 		A, B : IN STD_LOGIC_VECTOR(31 downto 0);
 		selector : IN STD_LOGIC_VECTOR(2 downto 0);
-        	Zero    : OUT STD_LOGIC;
 		Result : OUT STD_LOGIC_VECTOR(31 downto 0)
 	);
 END ALU;
@@ -30,7 +29,6 @@ ARCHITECTURE ALU_logic OF ALU IS
     	signal Cin_vec  : UNSIGNED(32 downto 0);
 
 	BEGIN
-
 		and_temp <= A AND B;
 		or_temp <= A OR B;
 		xor_temp <= A XOR B;
@@ -47,9 +45,6 @@ ARCHITECTURE ALU_logic OF ALU IS
     Sum_ext <= unsigned('0' & A) + unsigned('0' & B_eff) + Cin_vec;
 
     Res_temp <= std_logic_vector(Sum_ext(31 downto 0));
-
-    Zero <= '1' WHEN ((Res_temp = allZero) AND (selector(1) = '0')) ELSE
-		'0';
 
     Result <= and_temp WHEN (selector = "010") ELSE
 		or_temp WHEN (selector = "011") ELSE

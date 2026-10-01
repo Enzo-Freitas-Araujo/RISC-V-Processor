@@ -9,6 +9,7 @@ ENTITY pipelineReg IS
 		IFFlush : IN STD_LOGIC;
 		IFIDWrite : IN STD_LOGIC;
 		CLK : IN STD_LOGIC;
+		RESET : IN STD_LOGIC;
 		instructionOutput : OUT STD_LOGIC_VECTOR(31 downto 0);
 		PCOut : OUT STD_LOGIC_VECTOR(31 downto 0)
 	);
@@ -17,9 +18,12 @@ END pipelineReg;
 ARCHITECTURE pipelineReg_logic OF pipelineReg IS
 	BEGIN
 	
-		PROCESS(CLK)
+		PROCESS(CLK, RESET)
 			BEGIN
-				IF(IFFlush = '1') THEN
+				IF(Reset = '1') THEN
+					PCOut <= x"00000000";
+					instructionOutput <= x"00000000";
+				ELSIF(IFFlush = '1') THEN
 						instructionOutput <= "00000000000000000000000000010011";
 						PCOut <= PCOut;
 				ELSIF RISING_EDGE(CLK) THEN
