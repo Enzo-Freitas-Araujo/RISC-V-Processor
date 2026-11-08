@@ -9,7 +9,7 @@ ENTITY output_control IS
 		MemWrite : OUT STD_LOGIC;
 		MemRead : OUT STD_LOGIC;
 		Branch : OUT STD_LOGIC;
-		ALUOp : OUT STD_LOGIC_VECTOR (1 downto 0);
+		ALUOp : OUT STD_LOGIC;
 		ALUSrcB : OUT STD_LOGIC_VECTOR (1 downto 0);
 		ALUSrcA : OUT STD_LOGIC_VECTOR (1 downto 0);
 		RegWrite : OUT STD_LOGIC
@@ -28,38 +28,37 @@ ARCHITECTURE output_control_logic OF output_control IS
 	CONSTANT jal : STD_LOGIC_VECTOR(6 downto 0) := "1101111";
 	CONSTANT jalr : STD_LOGIC_VECTOR(6 downto 0) := "1100111";
 	SIGNAL opcode : STD_LOGIC_VECTOR(6 downto 0);
-
 	BEGIN
 		opcode <= instruction(6 downto 0);
 		PROCESS(opcode, instruction)
 		BEGIN
 		CASE Opcode IS
             		WHEN opAritmetica =>
-                		ALUSrcB <= "00"; ALUSrcA <= "00"; ALUOp <= "10"; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '1'; MemtoReg <= '0';
+                		ALUSrcB <= "00"; ALUSrcA <= "00"; ALUOp <=  '1'; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '1'; MemtoReg <= '0';
 
             		WHEN LW =>
-                		ALUSrcB <= "01"; ALUSrcA <= "00"; ALUOp <= "00"; MemRead <= '1'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '1'; MemtoReg <= '1';
+                		ALUSrcB <= "01"; ALUSrcA <= "00"; ALUOp <= '0'; MemRead <= '1'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '1'; MemtoReg <= '1';
 
             		WHEN SW =>
-                		ALUSrcB <= "01"; ALUSrcA <= "00"; ALUOp <= "00"; MemRead <= '0'; MemWrite <= '1'; Branch <= '0'; RegWrite <= '0'; MemtoReg <= '0';
+                		ALUSrcB <= "01"; ALUSrcA <= "00"; ALUOp <= '0'; MemRead <= '0'; MemWrite <= '1'; Branch <= '0'; RegWrite <= '0'; MemtoReg <= '0';
 
             		WHEN beq =>
-                		ALUSrcB <= "00"; ALUSrcA <= "00"; ALUOp <= "01"; MemRead <= '0'; MemWrite <= '0'; Branch <= '1'; RegWrite <= '0'; MemtoReg <= '0';
+                		ALUSrcB <= "00"; ALUSrcA <= "00"; ALUOp <= '1'; MemRead <= '0'; MemWrite <= '0'; Branch <= '1'; RegWrite <= '0'; MemtoReg <= '0';
 
 			WHEN arit_im =>
 				IF(instruction /= x"00000013") THEN
-					ALUSrcB <= "01"; ALUSrcA <= "00"; ALUOp <= "10"; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '1'; MemtoReg <= '0';
+					ALUSrcB <= "01"; ALUSrcA <= "00"; ALUOp <= '1'; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '1'; MemtoReg <= '0';
 				ELSE
-					ALUSrcB <= "00"; ALUSrcA <= "00"; ALUOp <= "00"; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '0'; MemtoReg <= '0';
+					ALUSrcB <= "00"; ALUSrcA <= "00"; ALUOp <= '0'; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '0'; MemtoReg <= '0';
 				END IF;
 			WHEN auipc =>
-				ALUSrcB <= "01"; ALUSrcA <= "01"; ALUOp <= "00"; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '1'; MemtoReg <= '0';
+				ALUSrcB <= "01"; ALUSrcA <= "01"; ALUOp <= '0'; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '1'; MemtoReg <= '0';
 			WHEN lui =>
-				ALUSrcB <= "01"; ALUSrcA <= "10"; ALUOp <= "00"; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '1'; MemtoReg <= '0';
+				ALUSrcB <= "01"; ALUSrcA <= "10"; ALUOp <= '0'; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '1'; MemtoReg <= '0';
 			WHEN jal | jalr =>
-				ALUSrcB <= "10"; ALUSrcA <= "01"; ALUOp <= "00"; MemRead <= '0'; MemWrite <= '0'; Branch <= '1'; RegWrite <= '1'; MemtoReg <= '0';
+				ALUSrcB <= "10"; ALUSrcA <= "01"; ALUOp <= '0'; MemRead <= '0'; MemWrite <= '0'; Branch <= '1'; RegWrite <= '1'; MemtoReg <= '0';
             		WHEN OTHERS =>
-                		ALUSrcB <= "00"; ALUSrcA <= "00"; ALUOp <= "00"; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '0'; MemtoReg <= '0';
+                		ALUSrcB <= "00"; ALUSrcA <= "00"; ALUOp <= '0'; MemRead <= '0'; MemWrite <= '0'; Branch <= '0'; RegWrite <= '0'; MemtoReg <= '0';
         		END CASE;
     		END PROCESS;
 	END output_control_logic;

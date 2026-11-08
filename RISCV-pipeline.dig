@@ -317,7 +317,7 @@ END register_logic;</string>
         </entry>
         <entry>
           <string>externalInputs</string>
-          <string>instruction:32,Imm:32,eq,RegWrite,MemToReg,memRead,memWrite,Branch,ALUOp:2,ALUSrcB:2,Rg1:32,Rg2:32,CLK,Flush,PC:32,ALUSrcA:2,RESET</string>
+          <string>instruction:32,Imm:32,eq,RegWrite,MemToReg,memRead,memWrite,Branch,ALUOp,ALUSrcB:2,Rg1:32,Rg2:32,CLK,Flush,PC:32,ALUSrcA:2,RESET</string>
         </entry>
         <entry>
           <string>Code</string>
@@ -337,7 +337,7 @@ ENTITY pipelineRegIDEX IS
 		memWrite : IN STD_LOGIC;
 		Branch : IN STD_LOGIC;
 
-		ALUOp : IN STD_LOGIC_VECTOR (1 downto 0);
+		ALUOp : IN STD_LOGIC;
 		ALUSrcB : IN STD_LOGIC_VECTOR (1 downto 0);
 
 		Rg1 : IN STD_LOGIC_VECTOR(31 downto 0);
@@ -358,7 +358,7 @@ ENTITY pipelineRegIDEX IS
 		memWriteOut : OUT STD_LOGIC;
 		BranchOut : OUT STD_LOGIC;
 
-		ALUOpOUT : OUT STD_LOGIC_VECTOR (1 downto 0);
+		ALUOpOUT : OUT STD_LOGIC;
 		ALUSrcBOUT : OUT STD_LOGIC_VECTOR(1 downto 0);
 
 		Rg1Out : OUT STD_LOGIC_VECTOR(31 downto 0);
@@ -378,7 +378,7 @@ ARCHITECTURE pipelineRegIDEX_logic OF pipelineRegIDEX IS
 					IF RESET = &apos;1&apos; THEN
 						instructionOutput &lt;= X&quot;00000000&quot;;
 						BranchOut &lt;= &apos;0&apos;;
-						AluOpOut &lt;= &quot;00&quot;;
+						AluOpOut &lt;= &apos;0&apos;;
 						AluSrcBOut &lt;= &quot;00&quot;;
 						AluSrcAOut &lt;= &quot;00&quot;;
 						ImmOut &lt;= X&quot;00000000&quot;;
@@ -451,7 +451,7 @@ ARCHITECTURE pipelineRegIDEX_logic OF pipelineRegIDEX IS
         </entry>
         <entry>
           <string>externalOutputs</string>
-          <string>instructionOutput:32,ImmOut:32,eqOut,RegWriteOut,MemToRegOut,memReadOut,memWriteOut,BranchOut,ALUOpOUT:2,ALUSrcBOUT:2,Rg1Out:32,Rg2Out:32,PCOut:32,ALUSrcAOUT:2</string>
+          <string>instructionOutput:32,ImmOut:32,eqOut,RegWriteOut,MemToRegOut,memReadOut,memWriteOut,BranchOut,ALUOpOUT,ALUSrcBOUT:2,Rg1Out:32,Rg2Out:32,PCOut:32,ALUSrcAOUT:2</string>
         </entry>
       </elementAttributes>
       <pos x="1340" y="2220"/>
@@ -1086,7 +1086,7 @@ ENTITY output_control IS
 		MemWrite : OUT STD_LOGIC;
 		MemRead : OUT STD_LOGIC;
 		Branch : OUT STD_LOGIC;
-		ALUOp : OUT STD_LOGIC_VECTOR (1 downto 0);
+		ALUOp : OUT STD_LOGIC;
 		ALUSrcB : OUT STD_LOGIC_VECTOR (1 downto 0);
 		ALUSrcA : OUT STD_LOGIC_VECTOR (1 downto 0);
 		RegWrite : OUT STD_LOGIC
@@ -1105,45 +1105,44 @@ ARCHITECTURE output_control_logic OF output_control IS
 	CONSTANT jal : STD_LOGIC_VECTOR(6 downto 0) := &quot;1101111&quot;;
 	CONSTANT jalr : STD_LOGIC_VECTOR(6 downto 0) := &quot;1100111&quot;;
 	SIGNAL opcode : STD_LOGIC_VECTOR(6 downto 0);
-
 	BEGIN
 		opcode &lt;= instruction(6 downto 0);
 		PROCESS(opcode, instruction)
 		BEGIN
 		CASE Opcode IS
             		WHEN opAritmetica =&gt;
-                		ALUSrcB &lt;= &quot;00&quot;; ALUSrcA &lt;= &quot;00&quot;; ALUOp &lt;= &quot;10&quot;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;1&apos;; MemtoReg &lt;= &apos;0&apos;;
+                		ALUSrcB &lt;= &quot;00&quot;; ALUSrcA &lt;= &quot;00&quot;; ALUOp &lt;=  &apos;1&apos;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;1&apos;; MemtoReg &lt;= &apos;0&apos;;
 
             		WHEN LW =&gt;
-                		ALUSrcB &lt;= &quot;01&quot;; ALUSrcA &lt;= &quot;00&quot;; ALUOp &lt;= &quot;00&quot;; MemRead &lt;= &apos;1&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;1&apos;; MemtoReg &lt;= &apos;1&apos;;
+                		ALUSrcB &lt;= &quot;01&quot;; ALUSrcA &lt;= &quot;00&quot;; ALUOp &lt;= &apos;0&apos;; MemRead &lt;= &apos;1&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;1&apos;; MemtoReg &lt;= &apos;1&apos;;
 
             		WHEN SW =&gt;
-                		ALUSrcB &lt;= &quot;01&quot;; ALUSrcA &lt;= &quot;00&quot;; ALUOp &lt;= &quot;00&quot;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;1&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;0&apos;; MemtoReg &lt;= &apos;0&apos;;
+                		ALUSrcB &lt;= &quot;01&quot;; ALUSrcA &lt;= &quot;00&quot;; ALUOp &lt;= &apos;0&apos;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;1&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;0&apos;; MemtoReg &lt;= &apos;0&apos;;
 
             		WHEN beq =&gt;
-                		ALUSrcB &lt;= &quot;00&quot;; ALUSrcA &lt;= &quot;00&quot;; ALUOp &lt;= &quot;01&quot;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;1&apos;; RegWrite &lt;= &apos;0&apos;; MemtoReg &lt;= &apos;0&apos;;
+                		ALUSrcB &lt;= &quot;00&quot;; ALUSrcA &lt;= &quot;00&quot;; ALUOp &lt;= &apos;1&apos;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;1&apos;; RegWrite &lt;= &apos;0&apos;; MemtoReg &lt;= &apos;0&apos;;
 
 			WHEN arit_im =&gt;
 				IF(instruction /= x&quot;00000013&quot;) THEN
-					ALUSrcB &lt;= &quot;01&quot;; ALUSrcA &lt;= &quot;00&quot;; ALUOp &lt;= &quot;10&quot;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;1&apos;; MemtoReg &lt;= &apos;0&apos;;
+					ALUSrcB &lt;= &quot;01&quot;; ALUSrcA &lt;= &quot;00&quot;; ALUOp &lt;= &apos;1&apos;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;1&apos;; MemtoReg &lt;= &apos;0&apos;;
 				ELSE
-					ALUSrcB &lt;= &quot;00&quot;; ALUSrcA &lt;= &quot;00&quot;; ALUOp &lt;= &quot;00&quot;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;0&apos;; MemtoReg &lt;= &apos;0&apos;;
+					ALUSrcB &lt;= &quot;00&quot;; ALUSrcA &lt;= &quot;00&quot;; ALUOp &lt;= &apos;0&apos;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;0&apos;; MemtoReg &lt;= &apos;0&apos;;
 				END IF;
 			WHEN auipc =&gt;
-				ALUSrcB &lt;= &quot;01&quot;; ALUSrcA &lt;= &quot;01&quot;; ALUOp &lt;= &quot;00&quot;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;1&apos;; MemtoReg &lt;= &apos;0&apos;;
+				ALUSrcB &lt;= &quot;01&quot;; ALUSrcA &lt;= &quot;01&quot;; ALUOp &lt;= &apos;0&apos;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;1&apos;; MemtoReg &lt;= &apos;0&apos;;
 			WHEN lui =&gt;
-				ALUSrcB &lt;= &quot;01&quot;; ALUSrcA &lt;= &quot;10&quot;; ALUOp &lt;= &quot;00&quot;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;1&apos;; MemtoReg &lt;= &apos;0&apos;;
+				ALUSrcB &lt;= &quot;01&quot;; ALUSrcA &lt;= &quot;10&quot;; ALUOp &lt;= &apos;0&apos;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;1&apos;; MemtoReg &lt;= &apos;0&apos;;
 			WHEN jal | jalr =&gt;
-				ALUSrcB &lt;= &quot;10&quot;; ALUSrcA &lt;= &quot;01&quot;; ALUOp &lt;= &quot;00&quot;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;1&apos;; RegWrite &lt;= &apos;1&apos;; MemtoReg &lt;= &apos;0&apos;;
+				ALUSrcB &lt;= &quot;10&quot;; ALUSrcA &lt;= &quot;01&quot;; ALUOp &lt;= &apos;0&apos;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;1&apos;; RegWrite &lt;= &apos;1&apos;; MemtoReg &lt;= &apos;0&apos;;
             		WHEN OTHERS =&gt;
-                		ALUSrcB &lt;= &quot;00&quot;; ALUSrcA &lt;= &quot;00&quot;; ALUOp &lt;= &quot;00&quot;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;0&apos;; MemtoReg &lt;= &apos;0&apos;;
+                		ALUSrcB &lt;= &quot;00&quot;; ALUSrcA &lt;= &quot;00&quot;; ALUOp &lt;= &apos;0&apos;; MemRead &lt;= &apos;0&apos;; MemWrite &lt;= &apos;0&apos;; Branch &lt;= &apos;0&apos;; RegWrite &lt;= &apos;0&apos;; MemtoReg &lt;= &apos;0&apos;;
         		END CASE;
     		END PROCESS;
 	END output_control_logic;</string>
         </entry>
         <entry>
           <string>externalOutputs</string>
-          <string>MemtoReg,MemWrite,MemRead,Branch,ALUOp:2,ALUSrcB:2,ALUSrcA:2,RegWrite</string>
+          <string>MemtoReg,MemWrite,MemRead,Branch,ALUOp,ALUSrcB:2,ALUSrcA:2,RegWrite</string>
         </entry>
       </elementAttributes>
       <pos x="620" y="1720"/>
@@ -1157,34 +1156,32 @@ ARCHITECTURE output_control_logic OF output_control IS
         </entry>
         <entry>
           <string>Label</string>
-          <string>MUX_2inputs_multOUT</string>
+          <string>selectorBlock</string>
         </entry>
         <entry>
           <string>externalInputs</string>
-          <string>enter1,enter2,enter3,enter4,enter5,enter6:2,enter7:2,enter8:2,selector</string>
+          <string>enter1,enter2,enter3,enter4,enter5,enter6,enter7:2,enter8:2,selector</string>
         </entry>
         <entry>
           <string>Code</string>
           <string>LIBRARY ieee;
 USE ieee.std_logic_1164.all;
 
-ENTITY MUX_2inputs_multOUT IS
+ENTITY selectorBlock IS
 	PORT(
 		enter1, enter2, enter3, 
-		enter4 , enter5 : IN STD_LOGIC;
-		enter6 : IN STD_LOGIC_VECTOR (1 downto 0);
+		enter4 , enter5, enter6 : IN STD_LOGIC;
 		enter7  : IN STD_LOGIC_VECTOR (1 downto 0);
 		enter8  : IN STD_LOGIC_VECTOR (1 downto 0);
 		selector : IN STD_LOGIC;
 		output1, output2, output3,
-		output4, output5 : OUT STD_LOGIC;
-		output6 : OUT STD_LOGIC_VECTOR (1 downto 0);
+		output4, output5, output6 : OUT STD_LOGIC;
 		output7 : OUT STD_LOGIC_VECTOR (1 downto 0);
 		output8 : OUT STD_LOGIC_VECTOR (1 downto 0)
 	);
-END MUX_2inputs_multOUT;
+END selectorBlock;
 
-ARCHITECTURE MUX_logic OF MUX_2inputs_multOUT IS
+ARCHITECTURE MUX_logic OF selectorBlock IS
 	BEGIN
 		output1 &lt;= &apos;0&apos; WHEN selector = &apos;1&apos; ELSE
 			enter1;
@@ -1196,7 +1193,7 @@ ARCHITECTURE MUX_logic OF MUX_2inputs_multOUT IS
 			enter4;
 		output5 &lt;= &apos;0&apos; WHEN selector = &apos;1&apos; ELSE
 			enter5;
-		output6 &lt;= &quot;00&quot; WHEN selector = &apos;1&apos; ELSE
+		output6 &lt;= &apos;0&apos; WHEN selector = &apos;1&apos; ELSE
 			enter6;
 		output7 &lt;= &quot;00&quot; WHEN selector = &apos;1&apos; ELSE
 			enter7;
@@ -1208,7 +1205,7 @@ ARCHITECTURE MUX_logic OF MUX_2inputs_multOUT IS
         </entry>
         <entry>
           <string>externalOutputs</string>
-          <string>output1,output2,output3,output4,output5,output6:2,output7:2,output8:2</string>
+          <string>output1,output2,output3,output4,output5,output6,output7:2,output8:2</string>
         </entry>
       </elementAttributes>
       <pos x="900" y="1720"/>
@@ -1250,7 +1247,7 @@ ARCHITECTURE MUX_logic OF MUX_2inputs_multOUT IS
         </entry>
         <entry>
           <string>externalInputs</string>
-          <string>instruction:32,ALUOp:2</string>
+          <string>instruction:32,ALUOp</string>
         </entry>
         <entry>
           <string>Code</string>
@@ -1260,7 +1257,7 @@ USE ieee.std_logic_1164.all;
 ENTITY ALU_control IS
 	PORT(
 		instruction : IN  STD_LOGIC_VECTOR(31 downto 0);
-		ALUOp  : IN STD_LOGIC_VECTOR(1 downto 0);
+		ALUOp  : IN STD_LOGIC;
 		selector : OUT STD_LOGIC_VECTOR(2 downto 0)
 	);
 END ALU_control;
@@ -1271,17 +1268,14 @@ ARCHITECTURE behavioral OF ALU_control IS
 	SIGNAL funct7 : STD_LOGIC_VECTOR(31 downto 25);
 BEGIN
 
-	opcode &lt;= instruction(6 downto 0);
 	funct3 &lt;= instruction(14 downto 12);
 	funct7 &lt;= instruction(31 downto 25);
 
-	PROCESS(ALUOp, opcode, funct3, funct7)
+	PROCESS(ALUOp, funct3, funct7)
 		BEGIN
 			selector &lt;= &quot;000&quot;;
-			IF(ALUOp = &quot;00&quot; OR opcode = &quot;0000011&quot; OR opcode = &quot;0100011&quot;) THEN
+			IF(ALUOp = &apos;0&apos;) THEN
 				selector &lt;= &quot;000&quot;;
-			ELSIF(ALUOp = &quot;01&quot; OR opcode = &quot;1100011&quot;) THEN
-				selector &lt;= &quot;001&quot;;
 			ELSE
 				IF(opcode = &quot;0110011&quot; OR opcode = &quot;0010011&quot;) THEN
 					IF(funct7 = &quot;0000000&quot; OR opcode = &quot;0010011&quot;) THEN
@@ -1432,7 +1426,7 @@ ENTITY HazardDetectionUnit IS
 		
 		PCWrite           : OUT STD_LOGIC;
 		IF_ID_Write       : OUT STD_LOGIC;
-		ControlMux        : OUT STD_LOGIC
+		ControlSelector       : OUT STD_LOGIC
 	);
 END HazardDetectionUnit;
 
@@ -1471,15 +1465,15 @@ BEGIN
 		IF IF_ID_opcode = &quot;1101111&quot; THEN
 			PCWrite     &lt;= &apos;1&apos;;
 			IF_ID_Write &lt;= &apos;0&apos;;
-			ControlMux  &lt;= &apos;0&apos;; 
+			ControlSelector &lt;= &apos;0&apos;; 
 		ELSIF stall_load_use OR stall_branch THEN
 			PCWrite     &lt;= &apos;0&apos;; -- Congela o Program Counter (PC)
 			IF_ID_Write &lt;= &apos;0&apos;; -- Congela o Registrador IF/ID
-			ControlMux  &lt;= &apos;1&apos;; -- Injeta Bolha/NOP no registrador ID/EX
+			ControlSelector &lt;= &apos;1&apos;; -- Injeta Bolha/NOP no registrador ID/EX
 		ELSE
 			PCWrite     &lt;= &apos;1&apos;; -- Fluxo normal de execução
 			IF_ID_Write &lt;= &apos;1&apos;;
-			ControlMux  &lt;= &apos;0&apos;;
+			ControlSelector  &lt;= &apos;0&apos;;
 		END IF;
 		
 	END PROCESS;
@@ -1487,7 +1481,7 @@ END behavioral;</string>
         </entry>
         <entry>
           <string>externalOutputs</string>
-          <string>PCWrite,IF_ID_Write,ControlMux</string>
+          <string>PCWrite,IF_ID_Write,ControlSelector</string>
         </entry>
       </elementAttributes>
       <pos x="1660" y="1660"/>

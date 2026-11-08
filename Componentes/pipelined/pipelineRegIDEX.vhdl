@@ -14,7 +14,7 @@ ENTITY pipelineRegIDEX IS
 		memWrite : IN STD_LOGIC;
 		Branch : IN STD_LOGIC;
 
-		ALUOp : IN STD_LOGIC_VECTOR (1 downto 0);
+		ALUOp : IN STD_LOGIC;
 		ALUSrcB : IN STD_LOGIC_VECTOR (1 downto 0);
 
 		Rg1 : IN STD_LOGIC_VECTOR(31 downto 0);
@@ -35,7 +35,7 @@ ENTITY pipelineRegIDEX IS
 		memWriteOut : OUT STD_LOGIC;
 		BranchOut : OUT STD_LOGIC;
 
-		ALUOpOUT : OUT STD_LOGIC_VECTOR (1 downto 0);
+		ALUOpOUT : OUT STD_LOGIC;
 		ALUSrcBOUT : OUT STD_LOGIC_VECTOR(1 downto 0);
 
 		Rg1Out : OUT STD_LOGIC_VECTOR(31 downto 0);
@@ -55,7 +55,7 @@ ARCHITECTURE pipelineRegIDEX_logic OF pipelineRegIDEX IS
 					IF RESET = '1' THEN
 						instructionOutput <= X"00000000";
 						BranchOut <= '0';
-						AluOpOut <= "00";
+						AluOpOut <= '0';
 						AluSrcBOut <= "00";
 						AluSrcAOut <= "00";
 						ImmOut <= X"00000000";
